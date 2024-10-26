@@ -1,0 +1,182 @@
+name: 'rizz'
+description: "College Fantasy"
+# The following line prevents the package from being accidentally published to
+# pub.dev using `flutter pub publish`. This is preferred for private packages.
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+# The following defines the version and build number for your application.
+# A version number is three numbers separated by dots, like 1.2.43
+# followed by an optional build number separated by a +.
+# Both the version and the builder number may be overridden in flutter
+# build by specifying --build-name and --build-number, respectively.
+# In Android, build-name is used as versionName while build-number used as versionCode.
+# Read more about Android versioning at https://developer.android.com/studio/publish/versioning
+# In iOS, build-name is used as CFBundleShortVersionString while build-number is used as CFBundleVersion.
+# Read more about iOS versioning at
+# https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
+# In Windows, build-name is used as the major, minor, and patch parts
+# of the product and file versions while build-number is used as the build suffix.
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+# Dependencies specify other packages that your package needs in order to work.
+# To automatically upgrade your package dependencies to the latest versions
+# consider running `flutter pub upgrade --major-versions`. Alternatively,
+# dependencies can be manually updated by changing the version numbers below to
+# the latest version available on pub.dev. To see which dependencies have newer
+# versions available, run `flutter pub outdated`.
+dependencies:
+  flutter:
+    sdk: flutter
+  faker: ^2.1.0
+  http: ^1.2.1
+  flutter_svg: ^2.0.5
+  shared_preferences: ^2.0.11
+  font_awesome_flutter: ^10.0.0
+  neopop: ^1.0.2
+  shimmer: ^3.0.0
+  vibration: ^2.0.1
+  audioplayers: ^6.0.0
+  lottie: ^3.1.2
+  provider: ^6.1.2
+  win32: ^5.5.0
+  # The following adds the Cupertino Icons font to your application.
+  # Use with the CupertinoIcons class for iOS style icons.
+  cupertino_icons: ^1.0.6
+  smooth_page_indicator: ^1.0.0+2
+  google_fonts: ^6.2.1
+  video_player: ^2.4.10
+  sendotp_flutter_sdk: ^0.0.1
+  geolocator: ^9.0.0
+  geocoding: ^2.0.0
+
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+    
+  # The "flutter_lints" package below contains a set of recommended lints to
+  # encourage good coding practices. The lint set provided by the package is
+  # activated in the `analysis_options.yaml` file located at the root of your
+  # package. See that file for information about deactivating specific lint
+  # rules and activating additional ones.
+  flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.1
+  animated_check: ^1.0.4
+  
+  
+# For information on the generic Dart part of this file, see the
+# following page: https://dart.dev/tools/pub/pubspec
+
+# The following section is specific to Flutter packages.
+flutter:
+
+  # The following line ensures that the Material Icons font is
+  # included with your application, so that you can use the icons in
+  # the material Icons class.
+  uses-material-design: true
+
+  # To add assets to your application, add an assets section, like this:
+  assets:
+  - assets/girl.png
+  - assets/girl1.png
+  - assets/girl2.png
+  - assets/girl3.png
+  - assets/girl4.png
+  - assets/girl5.png
+  - assets/girl6.png
+  - assets/girl7.png
+  - assets/girl8.png
+  - assets/girl9.png
+  - assets/girl10.png
+  - assets/girl11.png
+  - assets/girl12.png
+  - assets/girl13.png
+  - assets/girl14.png
+  - assets/girl15.png
+  - assets/girl16.png
+  - assets/girl17.png
+  - assets/girl18.png
+  - assets/girl19.png
+  - assets/girl20.png
+  - assets/tick_tock_sound.mp3
+  - assets/boy1.png
+  - assets/boy2.png
+  - assets/boy3.png
+  - assets/boy4.png  
+  - assets/couple1.png
+  - assets/couple2.png
+  - assets/couple3.png
+  - assets/couple4.png
+  - assets/boy5.png
+  - assets/boy6.png
+  - assets/boy7.png
+  - assets/boy8.png   
+  - assets/boy9.png
+  - assets/boy10.png     
+  - assets/drake_image.png
+  - assets/Animation_lights_bg.json
+  - assets/drums-roll.mp3
+  - assets/buttonpressed.mp3
+  - assets/button_final.mp3
+  - assets/game-level-complete-143022.mp3
+  - assets/playful-casino-slot-machine-jackpot-2-183923.mp3
+  - assets/Hiromix.png
+  - assets/Firework_confetti.json
+  - assets/2xwins.json
+  - assets/5xwins.json
+  - assets/10xwins.json
+  - assets/star_animation.json
+  - assets/10xwins_slowed.json
+  - assets/star_animation.json
+  - assets/5xwins_slowed.json
+  - assets/star_animation.json
+  - assets/2xwins_slowed.json
+  - assets/dots.png
+  - assets/starsfinal.svg
+  - assets/dots_black.png
+  - assets/Dollarcoin.mp4
+  - assets/Dollarnote.mp4
+  - assets/PaymentDone.mp4
+  - assets/1st.svg
+  - assets/2nd.svg
+  - assets/3rd.svg
+  - assets/male.png
+  - assets/female.png
+  - assets/other.png
+  # An image asset can refer to one or more resolution-specific "variants", see
+  # https://flutter.dev/assets-and-images/#resolution-aware
+
+  # For details regarding adding assets from package dependencies, see
+  # https://flutter.dev/assets-and-images/#from-packages
+
+  # To add custom fonts to your application, add a fonts section here,
+  # in this "flutter" section. Each entry in this list should have a
+  # "family" key with the font family name, and a "fonts" key with a
+  # list giving the asset and other descriptors for the font. For
+  # example:
+  fonts:
+      - family: Digital-7
+        fonts:
+          - asset: assets/digital-7.ttf
+      - family: InriaSerif
+        fonts:
+          - asset: assets/InriaSerif-Regular.ttf   
+      
+  #       - asset: fonts/Schyler-Italic.ttf
+  #         style: italic
+  #   - family: Trajan Pro
+  #     fonts:
+  #       - asset: fonts/TrajanPro.ttf
+  #       - asset: fonts/TrajanPro_Bold.ttf
+  #         weight: 700
+  #
+  # For details regarding fonts from package dependencies,
+  # see https://flutter.dev/custom-fonts/#from-packages
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/rizzicon_final.png"
+  
