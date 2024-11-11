@@ -156,13 +156,13 @@ class _AnimationPageState extends State<AnimationPage> with SingleTickerProvider
           'Your Team',
           style: GoogleFonts.openSans(
             fontSize: 40,
-            color: Color.fromARGB(255, 213, 216, 57),
+            color: Color.fromARGB(255, 255, 195, 152),
             fontWeight: FontWeight.bold,
             shadows: [
               Shadow(
                 offset: Offset(3.0, 3.0),
                 blurRadius: 3.0,
-                color: Color.fromARGB(255, 248, 153, 36),
+                color: Color.fromARGB(255, 109, 39, 39),
               ),
             ],
           ),

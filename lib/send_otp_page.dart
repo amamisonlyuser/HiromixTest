@@ -3,7 +3,9 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'verify_otp_page.dart';
 import 'package:neopop/neopop.dart';
-import 'package:flutter/services.dart'; // For HapticFeedback
+import 'GlobalData.dart';
+
+// For HapticFeedback
 
 void sendOtp(String email, String name, String phoneNumber) async {
   print('Sending OTP to $email, $name, $phoneNumber');
@@ -14,6 +16,7 @@ void sendOtp(String email, String name, String phoneNumber) async {
     );
     if (response.statusCode == 200) {
       print('OTP Sent');
+      print(response);
     } else {
       print('Failed to send OTP. Status code: ${response.statusCode}');
       print('Response body: ${response.body}');
@@ -107,6 +110,10 @@ class _SendOtpPageState extends State<SendOtpPage> {
                 shadowColor: Color.fromARGB(255, 54, 54, 54), // Shadow color (standard gray)
               ),
               onTapUp: () {
+                // Update global data with input values
+                GlobalData().setPhoneNumber(_phoneController.text);
+                GlobalData().setEmail(_emailController.text);
+                GlobalData().setUserName(_nameController.text);
                 sendOtp(_emailController.text, _nameController.text, _phoneController.text); // Function to send OTP
                 Navigator.push(
                   context,

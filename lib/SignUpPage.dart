@@ -7,19 +7,21 @@ import 'GlobalData.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+
  // Import the GlobalData class
 
 class SignUpPage extends StatefulWidget {
-  final String phoneNumber1;
-  final String jwtToken1;
-  final List<dynamic> institutions1; // Accept institutions data
+  final String phoneNumber;
+  final String jwtToken;
+  final List<dynamic> institutions; // Accept institutions data
 
-  SignUpPage({
-    Key? key,
-    required this.phoneNumber1,
-    required this.jwtToken1,
-    required this.institutions1,
-  }) : super(key: key);
+  const SignUpPage({
+    super.key,
+    required this.phoneNumber,
+    required this.jwtToken,
+    required this.institutions,
+  });
 
   @override
   _SignUpPageState createState() => _SignUpPageState();
@@ -67,6 +69,18 @@ Widget build(BuildContext context) {
       controller: _pageController,
       physics: const NeverScrollableScrollPhysics(),
       children: [
+        InstitutionPage(
+          onNext: (selectedInstitution, shortName, state, city) {
+            setState(() {
+              _selectedInstitution = selectedInstitution;
+              _institutionShortName = shortName;
+              _state = state;
+              _city = city;
+            });
+            _nextPage();
+          },
+          institutions: widget.institutions, // Pass the list of institutions
+        ),
         GenderPage(onNext: (value) {
           setState(() => _gender = value);
           _nextPage();
@@ -84,18 +98,7 @@ Widget build(BuildContext context) {
           _nextPage();
         }),
         
-        InstitutionPage(
-          onNext: (selectedInstitution, shortName, state, city) {
-            setState(() {
-              _selectedInstitution = selectedInstitution;
-              _institutionShortName = shortName;
-              _state = state;
-              _city = city;
-            });
-            _nextPage();
-          },
-          institutions: widget.institutions1, // Pass the list of institutions
-        ),
+        
         SummaryPage(data: {
           'First Name': _firstName,
           'Last Name': _lastName,
@@ -128,7 +131,7 @@ Widget build(BuildContext context) {
 
       // Create the body for the POST request
       final Map<String, dynamic> signupData = {
-        "phone_number": widget.phoneNumber1,
+        "phone_number": widget.phoneNumber,
         "institution_short_name": _institutionShortName,
         "institution_name": _institutionName,
         "first_name": _firstName,
@@ -137,7 +140,7 @@ Widget build(BuildContext context) {
         "gender": _gender,
         "state": _state,
         "city": _city,
-        "jwt_token": widget.jwtToken1, // Include the JWT token
+        "jwt_token": widget.jwtToken, // Include the JWT token
       };
 
       // Send the POST request
@@ -153,20 +156,20 @@ Widget build(BuildContext context) {
         // Successful signup
         
         // Save data to GlobalData
-        GlobalData().setPhoneNumber(widget.phoneNumber1);
-        GlobalData().setFirstName('${_firstName}');
-        GlobalData().setLastName('${_lastName}');
-        GlobalData().setInstitutionShortName('${_institutionShortName}');
-        GlobalData().setInstitutionName('${_institutionName}');
+        GlobalData().setPhoneNumber(widget.phoneNumber);
+        GlobalData().setFirstName('$_firstName');
+        GlobalData().setLastName('$_lastName');
+        GlobalData().setInstitutionShortName(_institutionShortName);
+        GlobalData().setInstitutionName('$_institutionName');
         GlobalData().setAge(_age!);
-        GlobalData().setGender('${_gender}');
-        GlobalData().setState('${_state}');
-        GlobalData().setCity('${_city}');
+        GlobalData().setGender('$_gender');
+        GlobalData().setState('$_state');
+        GlobalData().setCity('$_city');
 
         // Navigate to MyHomePage
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => MyHomePage(phoneNumber: widget.phoneNumber1)),
+          MaterialPageRoute(builder: (context) => MyHomePage(phoneNumber: widget.phoneNumber)),
         );
       } else {
         // Handle error
@@ -183,7 +186,7 @@ Widget build(BuildContext context) {
 class FirstNamePage extends StatelessWidget {
   final ValueChanged<String> onNext;
 
-  FirstNamePage({required this.onNext});
+  const FirstNamePage({super.key, required this.onNext});
 
   @override
   Widget build(BuildContext context) {
@@ -262,7 +265,7 @@ class FirstNamePage extends StatelessWidget {
 class LastNamePage extends StatelessWidget {
   final ValueChanged<String> onNext;
 
-  LastNamePage({required this.onNext});
+  const LastNamePage({super.key, required this.onNext});
 
   @override
   Widget build(BuildContext context) {
@@ -338,11 +341,14 @@ class LastNamePage extends StatelessWidget {
 
  
 
+
+
+
 class InstitutionPage extends StatefulWidget {
   final List<dynamic> institutions;
   final Function(String, String, String, String) onNext;
 
-  InstitutionPage({required this.institutions, required this.onNext});
+  const InstitutionPage({super.key, required this.institutions, required this.onNext});
 
   @override
   _InstitutionPageState createState() => _InstitutionPageState();
@@ -359,36 +365,46 @@ class _InstitutionPageState extends State<InstitutionPage> {
   @override
   void initState() {
     super.initState();
-    _getCurrentLocation();
-
-    // Sort the initial list of institutions alphabetically by name
+    // Simulated current location retrieval for the sake of example
     filteredInstitutions = List.from(widget.institutions)
       ..sort((a, b) => (a['institution_name'] ?? '').compareTo(b['institution_name'] ?? ''));
+    
+    _getCurrentLocation(); // Get the current location when the page loads
   }
 
+  // Function to get the current location and update state and city
   Future<void> _getCurrentLocation() async {
-    try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) return;
+    bool serviceEnabled;
+    LocationPermission permission;
 
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission != LocationPermission.whileInUse &&
-            permission != LocationPermission.always) return;
-      }
-
-      Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-      List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
-      if (placemarks.isNotEmpty) {
-        setState(() {
-          city = placemarks[0].locality;
-          state = placemarks[0].administrativeArea;
-        });
-      }
-    } catch (e) {
-      print(e);
+    // Check if location services are enabled
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      // Location services are not enabled, request to enable them
+      await Geolocator.openLocationSettings();
+      return;
     }
+
+    // Check and request location permission
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission != LocationPermission.whileInUse && permission != LocationPermission.always) {
+        return;
+      }
+    }
+
+    // Get current position
+    Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+
+    // Use geocoding to get the address from the coordinates
+    List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
+    Placemark placemark = placemarks[0];
+
+    setState(() {
+      state = placemark.administrativeArea; // State
+      city = placemark.locality; // City
+    });
   }
 
   void _filterInstitutions(String query) {
@@ -406,132 +422,159 @@ class _InstitutionPageState extends State<InstitutionPage> {
   }
 
   @override
-Widget build(BuildContext context) {
-  String shortName = selectedInstitution != null
-      ? (widget.institutions.firstWhere(
-            (inst) => inst['institution_name'] == selectedInstitution,
-            orElse: () => {'SK': 'Institution#DefaultShortName'}, // Default value
-          )['SK']?.split('#').last ?? 'DefaultShortName') // Get the last part after '#'
-      : 'SampleShortName';
+  Widget build(BuildContext context) {
+    String shortName = selectedInstitution != null
+        ? (widget.institutions.firstWhere(
+              (inst) => inst['institution_name'] == selectedInstitution,
+              orElse: () => {'SK': 'Institution#DefaultShortName'},
+            )['SK']?.split('#').last ?? 'DefaultShortName')
+        : 'SampleShortName';
 
-  return Container(
-    color: const Color.fromARGB(255, 0, 0, 0), // Black background color
-    padding: const EdgeInsets.all(16.0),
-    child: Column(
-      children: [
-        Text(
-          state != null ? 'State: $state' : 'Fetching state...',
-          style: const TextStyle(color: Colors.white), // White text color
-        ),
-        Text(
-          city != null ? 'City: $city' : 'Fetching city...',
-          style: const TextStyle(color: Colors.white), // White text color
-        ),
-        const SizedBox(height: 20),
-        TextField(
-          decoration: const InputDecoration(
-            labelText: 'Search for an institution',
-            labelStyle: TextStyle(color: Colors.white54), // Light grey label text
-            filled: true,
-            fillColor: Colors.grey, // Grey background for the search field
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.all(Radius.circular(8.0)),
-              borderSide: BorderSide(color: Colors.grey), // Light grey border
+    return Container(
+      color: Colors.black,
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: [
+          const SizedBox(height: 20),
+          TextField(
+            decoration: const InputDecoration(
+              labelText: 'Search for an institution',
+              labelStyle: TextStyle(color: Colors.white54),
+              filled: true,
+              fillColor: Colors.grey,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(8.0)),
+                borderSide: BorderSide(color: Colors.grey),
+              ),
+            ),
+            style: const TextStyle(color: Colors.white),
+            onChanged: _filterInstitutions,
+          ),
+          const SizedBox(height: 10),
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color.fromARGB(255, 0, 0, 0),
+                borderRadius: BorderRadius.circular(0),
+              ),
+              child: ListView.builder(
+                itemCount: filteredInstitutions.length,
+                itemBuilder: (context, index) {
+                  final institution = filteredInstitutions[index];
+                  final institutionName = institution['institution_name'] ?? 'Unknown Institution';
+                  final isSelected = selectedInstitution == institutionName;
+
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        selectedInstitution = institutionName;
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color.fromARGB(255, 0, 0, 0) : const Color.fromARGB(255, 0, 0, 0),
+                        borderRadius: BorderRadius.circular(10.0),
+                        border: isSelected
+                            ? Border.all(color: Colors.white, width: 2.0)
+                            : Border.all(color: Colors.transparent),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              institutionName,
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          CircleAvatar(
+                            backgroundColor: Colors.white,
+                            backgroundImage: AssetImage('assets/college_logo.png'), // Example logo path
+                            radius: 16,
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
           ),
-          style: const TextStyle(color: Colors.white), // White input text color
-          onChanged: _filterInstitutions,
-        ),
-        const SizedBox(height: 10),
-        Expanded(
-          child: ListView.builder(
-            itemCount: filteredInstitutions.length,
-            itemBuilder: (context, index) {
-              final institution = filteredInstitutions[index];
-              final institutionName = institution['institution_name'] ?? 'Unknown Institution';
-              return Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey[800], // Dark grey background for list items
-                  border: Border(
-                    bottom: BorderSide(color: Colors.grey), // Light grey border
+          const SizedBox(height: 20),
+          SizedBox(
+            height: 80,
+            child: neopop.NeoPopTiltedButton(
+              isFloating: true,
+              decoration: const neopop.NeoPopTiltedButtonDecoration(
+                color: Colors.white,
+                plunkColor: Color.fromARGB(255, 212, 212, 212),
+                shadowColor: Color.fromARGB(255, 54, 54, 54),
+              ),
+              onTapUp: () {
+                // Ensure that selectedInstitution, state, and city are not null
+                if (selectedInstitution != null) {
+                  widget.onNext(
+                    selectedInstitution!, 
+                    shortName, 
+                    state ?? 'DefaultState', // Use default values if null
+                    city ?? 'DefaultCity',   // Use default values if null
+                  );
+                } else {
+                  // You can show a dialog or feedback to the user that they need to select an institution
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please select an institution')),
+                  );
+                }
+              },
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 70.0, vertical: 20),
+                child: Text(
+                  'Next',
+                  style: TextStyle(
+                    color: Color.fromARGB(255, 0, 0, 0),
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
-                ),
-                child: ListTile(
-                  title: Text(
-                    institutionName,
-                    style: const TextStyle(color: Colors.white), // White text color
-                  ),
-                  onTap: () {
-                    setState(() {
-                      selectedInstitution = institutionName;
-                    });
-                  },
-                  selected: selectedInstitution == institutionName,
-                  selectedTileColor: Colors.grey[700], // Slightly lighter grey for selected item
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 20), // Add space before the button
-        SizedBox(
-          height: 80, // Button height for consistency
-          child: neopop.NeoPopTiltedButton(
-            isFloating: true,
-            decoration: const neopop.NeoPopTiltedButtonDecoration(
-              color: Colors.white, // Button color (white)
-              plunkColor: Color.fromARGB(255, 212, 212, 212), // Light gray for the plunk effect
-              shadowColor: Color.fromARGB(255, 54, 54, 54), // Shadow color
-            ),
-            onTapUp: () {
-              if (selectedInstitution != null && state != null && city != null) {
-                widget.onNext(selectedInstitution!, shortName, state!, city!); // Pass required parameters to onNext
-              }
-            },
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 70.0, vertical: 20), // Button padding
-              child: Text(
-                'Next', // Button label
-                style: TextStyle(
-                  color: Color.fromARGB(255, 0, 0, 0), // Black text color
-                  fontSize: 18, // Font size
-                  fontWeight: FontWeight.bold, // Bold font weight
                 ),
               ),
             ),
           ),
-        ),
-      ],
-    ),
-  );
-}
-}
-
-
-
-class SummaryPage extends StatelessWidget {
-  final Map<String, String?> data;
-
-  SummaryPage({required this.data});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: data.entries.map((entry) {
-          return Text('${entry.key}: ${entry.value ?? ''}');
-        }).toList(),
+          const SizedBox(height: 10),
+          // "Skip" button
+          TextButton(
+            style: TextButton.styleFrom(
+              backgroundColor: const Color.fromARGB(255, 255, 255, 42), // Yellow background color
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8), // Rounded corners
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 40.0, vertical: 12), // Reduced padding
+            ),
+            onPressed: () {
+              widget.onNext('None', 'None', state ?? '', city ?? '');
+            },
+            child: const Text(
+              'Skip',
+              style: TextStyle(
+                color: Color.fromARGB(255, 0, 0, 0),
+                fontSize: 16, // Reduced font size
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
+
+
+
 class AgePage extends StatefulWidget {
   final ValueChanged<int> onNext;
 
-  AgePage({required this.onNext});
+  const AgePage({super.key, required this.onNext});
 
   @override
   _AgePageState createState() => _AgePageState();
@@ -590,10 +633,9 @@ class _AgePageState extends State<AgePage> {
                     shadowColor: Color.fromARGB(255, 54, 54, 54), // Shadow color
                   ),
                   onTapUp: () {
-                    if (selectedAge != null) { // Check if selectedAge is not null
-                      widget.onNext(selectedAge); // Call the onNext function with selectedAge
-                    }
-                  },
+ // Check if selectedAge is not null
+                    widget.onNext(selectedAge); // Call the onNext function with selectedAge
+                                    },
                   child: const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 70.0, vertical: 20), // Padding around the button text
                     child: Text(
@@ -616,13 +658,14 @@ class _AgePageState extends State<AgePage> {
 }
 
 
-
  
+
+
 
 class GenderPage extends StatefulWidget {
   final ValueChanged<String> onNext;
 
-  const GenderPage({required this.onNext, Key? key}) : super(key: key);
+  const GenderPage({required this.onNext, super.key});
 
   @override
   _GenderPageState createState() => _GenderPageState();
@@ -647,12 +690,12 @@ class _GenderPageState extends State<GenderPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _genderImage('Male', 'assets/male.png'),
-              _genderImage('Female', 'assets/female.png'),
+              _genderImage('Male', 'assets/male.svg'),
+              _genderImage('Female', 'assets/female.svg'),
             ],
           ),
           const SizedBox(height: 10),
-          Center(child: _genderImage('Other', 'assets/other.png')),
+          Center(child: _genderImage('Other', 'assets/other.svg')),
           const SizedBox(height: 30),
           neopop.NeoPopTiltedButton(
             isFloating: true,
@@ -683,69 +726,177 @@ class _GenderPageState extends State<GenderPage> {
     );
   }
 
- Widget _genderImage(String gender, String imagePath) {
-  Color borderColor;
+  Widget _genderImage(String gender, String imagePath) {
+    Color borderColor;
   
-  if (selectedGender == gender) {
-    if (gender == 'Male') {
-      borderColor = Colors.blue;
-    } else if (gender == 'Female') {
-      borderColor = Colors.pink;
+    if (selectedGender == gender) {
+      if (gender == 'Male') {
+        borderColor = Colors.blue;
+      } else if (gender == 'Female') {
+        borderColor = Colors.pink;
+      } else {
+        // Create a rainbow gradient for "Other"
+        borderColor = Colors.transparent; // Set transparent as base, handled by gradient
+      }
     } else {
-      // Create a rainbow gradient for "Other"
-      borderColor = Colors.transparent; // Set transparent as base, handled by gradient
+      borderColor = Colors.transparent;
     }
-  } else {
-    borderColor = Colors.transparent;
-  }
 
-  return GestureDetector(
-    onTap: () {
-      setState(() {
-        selectedGender = gender; // Update selected gender
-      });
-    },
-    child: Column(
-      children: [
-        Container(
-          width: 150,
-          height: 150,
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: borderColor,
-              width: 4,
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          selectedGender = gender; // Update selected gender
+        });
+      },
+      child: Column(
+        children: [
+          Container(
+            width: 150,
+            height: 150,
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: borderColor,
+                width: 4,
+              ),
+              gradient: selectedGender == 'Other' && gender == 'Other'
+                  ? const LinearGradient(
+                      colors: [
+                        Color.fromARGB(255, 163, 67, 60),
+                        Color.fromARGB(255, 255, 196, 107),
+                        Color.fromARGB(255, 255, 245, 156),
+                        Color.fromARGB(255, 54, 252, 206),
+                        Color.fromARGB(255, 33, 152, 243),
+                        Color.fromARGB(255, 85, 106, 221),
+                        Color.fromARGB(255, 226, 29, 200),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    )
+                  : null,
+              borderRadius: BorderRadius.circular(8),
             ),
-            gradient: selectedGender == 'Other' && gender == 'Other'
-                ? LinearGradient(
-                    colors: [
-                      Colors.red,
-                      Colors.orange,
-                      Colors.yellow,
-                      Colors.green,
-                      Colors.blue,
-                      Colors.indigo,
-                      Colors.purple,
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  )
-                : null,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.asset(
-              imagePath,
-              fit: BoxFit.cover,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: SvgPicture.asset(
+                imagePath,
+                fit: BoxFit.cover,
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          gender,
-          style: const TextStyle(color: Colors.white, fontSize: 16),
-        ),
-      ],
-    ),
-  );
-}}
+          const SizedBox(height: 8),
+          Text(
+            gender,
+            style: const TextStyle(color: Colors.white, fontSize: 16),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+class SummaryPage extends StatelessWidget {
+  final Map<String, String?> data;
+
+  const SummaryPage({super.key, required this.data});
+
+  // Function to send POST request for signup
+  Future<void> _sendSignupRequest(
+  String phoneNumber,
+  String institutionShortName,
+  String institutionName,
+  String firstName,
+  String lastName,
+  int age,
+  String gender,
+  String state,
+  String city,
+  String jwtToken,
+) async {
+  const apiUrl = 'https://innqn6dwv1.execute-api.ap-south-1.amazonaws.com/prod/User/SignUp';
+
+  // Request body without the "body" wrapper
+  final requestBody = {
+    'phone_number': phoneNumber,
+    'institution_short_name': institutionShortName,
+    'institution_name': institutionName,
+    'first_name': firstName,
+    'last_name': lastName,
+    'age': age,
+    'gender': gender,
+    'state': state,
+    'city': city,
+    'jwt_token': jwtToken,
+  };
+
+  try {
+    final response = await http.post(
+      Uri.parse(apiUrl),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(requestBody),
+    );
+
+    if (response.statusCode == 200) {
+      try {
+        final responseData = json.decode(response.body);
+        print('Signup successful: $responseData $requestBody');
+      } catch (e) {
+        print('Response is not in JSON format: ${response.body}');
+      }
+    } else {
+      print('Failed to signup: Status Code ${response.statusCode} - ${response.body}');
+    }
+  } catch (e) {
+    print('Error during signup: $e');
+  }
+}
+
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ...data.entries.map((entry) {
+            return Text('${entry.key}: ${entry.value ?? ''}');
+          }).toList(),
+          const SizedBox(height: 30),
+          Center(
+            child: ElevatedButton(
+              onPressed: () {
+                // Extract data from the provided map
+                final String phoneNumber = data['phone_number'] ?? '';
+                final String institutionShortName = data['institution_short_name'] ?? '';
+                final String institutionName = data['institution_name'] ?? '';
+                final String firstName = data['first_name'] ?? '';
+                final String lastName = data['last_name'] ?? '';
+                final int age = int.tryParse(data['age'] ?? '0') ?? 0;
+                final String gender = data['gender'] ?? '';
+                final String state = data['state'] ?? '';
+                final String city = data['city'] ?? '';
+                final String jwtToken = data['jwt_token'] ?? '';
+
+                // Call the signup function with extracted data
+                _sendSignupRequest(
+                  phoneNumber,
+                  institutionShortName,
+                  institutionName,
+                  firstName,
+                  lastName,
+                  age,
+                  gender,
+                  state,
+                  city,
+                  jwtToken,
+                );
+              },
+              child: const Text('Submit Signup'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

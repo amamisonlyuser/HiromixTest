@@ -14,6 +14,7 @@ class GlobalData extends ChangeNotifier {
   String? _gender;
   String? _state;
   String? _city;
+   String? _email;
 
   // Method to update user name
   void setUserName(String name) {
@@ -35,6 +36,17 @@ class GlobalData extends ChangeNotifier {
   // Method to get phone number
   String? getPhoneNumber() {
     return phoneNumber;
+  }
+
+  // Method to update phone number
+  void setEmail(String email) {
+    _email = email;
+    notifyListeners();
+  }
+
+  // Method to get phone number
+  String? getEmail() {
+    return _email;
   }
 
   // Method to store poll data

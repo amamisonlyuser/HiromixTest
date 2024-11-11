@@ -45,10 +45,14 @@ class _PollsPageState extends State<PollsPage> {
     _scrollController = ScrollController();
 
     // Initialize the PageController with custom settings
-    _pageController = PageController(
-      viewportFraction: 0.5, // Pages take up half the screen width
-      initialPage: 0, // Start at the first page
-    );
+    // Assume currentQuestion['options'] is your list of options
+final int middleIndex = (pollData[0]['question']['options'].length / 2).floor();
+
+// Initialize _pageController with dynamic initialPage based on middleIndex
+_pageController = PageController(
+  viewportFraction: 0.5, // Pages take up half the screen width
+  initialPage: middleIndex, // Start at the middle of options list
+);
 
     _fetchPollData(); // Fetch poll data on initialization
   }
@@ -113,7 +117,7 @@ class _PollsPageState extends State<PollsPage> {
       if (_currentPollIndex < pollData[0]['questions'].length - 1) {
         _currentPollIndex++;
         _pageController.nextPage(
-          duration: const Duration(milliseconds: 300),
+          duration: const Duration(milliseconds: 1000),
           curve: Curves.easeIn,
         );
         _selectedOptions.isNotEmpty; // Reset for the next question

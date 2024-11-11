@@ -143,9 +143,10 @@ flutter:
   - assets/1st.svg
   - assets/2nd.svg
   - assets/3rd.svg
-  - assets/male.png
-  - assets/female.png
-  - assets/other.png
+  - assets/male.svg
+  - assets/female.svg
+  - assets/other.svg
+  - assets/college_logo.png
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware
 
