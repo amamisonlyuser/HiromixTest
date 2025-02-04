@@ -8,7 +8,7 @@ import 'custom_navigator.dart';
 import 'send_otp_page.dart';
 import 'GlobalData.dart';
 import 'verify_otp_page.dart';
-
+import 'errorpage.dart';
 
 void main() {
   runApp(
@@ -54,7 +54,13 @@ class MyApp extends StatelessWidget {
     }
 
     // Default route if no match
-    return MaterialPageRoute(builder: (context) => const RootPage());
+    // If the URL is `/`, return a default screen (RootPage)
+    if (uri.pathSegments.isEmpty) {
+      return MaterialPageRoute(builder: (context) => const RootPage());
+    }
+
+    // Handle other cases as needed
+    return MaterialPageRoute(builder: (context) => const ErrorPage()); // Add an ErrorPage for unexpected routes
   }
 }
 
