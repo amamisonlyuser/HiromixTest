@@ -7,6 +7,8 @@ import 'WalletTemplatePage.dart';
 import 'custom_navigator.dart';
 import 'send_otp_page.dart';
 import 'GlobalData.dart';
+import 'verify_otp_page.dart';
+
 
 void main() {
   runApp(
@@ -33,10 +35,29 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         textTheme: const TextTheme().apply(fontFamily: 'InriaSerif'),
       ),
-      home: const RootPage(),
+      initialRoute: '/',
+      onGenerateRoute: _onGenerateRoute,  // Handle dynamic links here
     );
   }
+
+  Route<dynamic> _onGenerateRoute(RouteSettings settings) {
+    Uri uri = Uri.parse(settings.name ?? '/');
+
+    // Check if URL matches /phoneNumber/otp
+    if (uri.pathSegments.length == 2 && uri.pathSegments[1] == 'otp') {
+      final phoneNumber = uri.pathSegments[0];
+      final otp = uri.queryParameters['otp'] ?? '';
+
+      return MaterialPageRoute(
+        builder: (context) => VerifyOtpPage(phoneNumber: phoneNumber, otp: otp),
+      );
+    }
+
+    // Default route if no match
+    return MaterialPageRoute(builder: (context) => const RootPage());
+  }
 }
+
 
 class RootPage extends StatefulWidget {
   const RootPage({super.key});

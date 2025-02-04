@@ -53,6 +53,7 @@ dependencies:
   geocoding: ^2.0.0
   flutter_bloc: ^8.1.4
   equatable: ^2.0.5
+  uni_links: ^0.5.1
 
 
 dev_dependencies:
@@ -67,6 +68,7 @@ dev_dependencies:
   flutter_lints: ^5.0.0
   flutter_launcher_icons: ^0.14.1
   animated_check: ^1.0.4
+
   
   
 # For information on the generic Dart part of this file, see the

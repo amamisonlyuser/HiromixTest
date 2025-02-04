@@ -5,11 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'main.dart';
 import 'package:neopop/neopop.dart';
 import 'SignUpPage.dart';
-import 'GlobalData.dart';
-import 'send_otp_page.dart';
 import 'package:flutter/animation.dart';
 import 'dart:async';
-import 'package:provider/provider.dart'; // If using Provider for state management
 
 
 
@@ -18,8 +15,13 @@ import 'package:provider/provider.dart'; // If using Provider for state manageme
 
 class VerifyOtpPage extends StatefulWidget {
   final String phoneNumber;
-  final String email;
-   const VerifyOtpPage({super.key, required this.phoneNumber, required this.email});
+  final String? otp; // Optional OTP parameter for autofill
+
+  const VerifyOtpPage({
+    super.key,
+    required this.phoneNumber,
+    this.otp, // Make OTP optional
+  });
 
   @override
   _VerifyOtpPageState createState() => _VerifyOtpPageState();
@@ -28,16 +30,30 @@ class VerifyOtpPage extends StatefulWidget {
 class _VerifyOtpPageState extends State<VerifyOtpPage> {
   final List<TextEditingController> _otpControllers = List.generate(6, (index) => TextEditingController());
   final List<FocusNode> _focusNodes = List.generate(6, (index) => FocusNode());
-  bool InvalidOtp = false;
+  bool _invalidOtp = false;
   bool _isResendEnabled = false;
   int _remainingSeconds = 30;
   late Timer _timer;
 
-
-@override
+  @override
   void initState() {
     super.initState();
     _startTimer();
+
+    // Autofill OTP if provided
+    if (widget.otp != null && widget.otp!.length == 6) {
+      _autofillOtp(widget.otp!);
+      // Optionally trigger auto-verification after autofill
+      Future.delayed(const Duration(milliseconds: 500), () {
+        verifyOtp(widget.phoneNumber, widget.otp!, context);
+      });
+    }
+  }
+
+  void _autofillOtp(String otp) {
+    for (int i = 0; i < 6; i++) {
+      _otpControllers[i].text = otp[i];
+    }
   }
 
   @override
@@ -52,11 +68,11 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
     super.dispose();
   }
 
- void _startTimer() {
+  void _startTimer() {
     _isResendEnabled = false;
     _remainingSeconds = 30;
 
-    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_remainingSeconds > 0) {
         setState(() {
           _remainingSeconds--;
@@ -69,120 +85,81 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
       }
     });
   }
-void verifyOtp(String phoneNumber, String otp, BuildContext context) async {
-  try {
-    final response = await http.post(
-      Uri.parse('https://innqn6dwv1.execute-api.ap-south-1.amazonaws.com/prod/User/Auth'),
-      headers: <String, String>{
-        'Content-Type': 'application/json; charset=UTF-8',
-      },
-      body: jsonEncode(<String, String>{
-        "phone_number": phoneNumber,
-        "otp": otp,
-      }),
-    );
 
-    if (response.statusCode == 200) {
-      // Decode the response data
-      Map<String, dynamic> responseData = json.decode(response.body);
-      print('Response Data: $responseData'); // Debugging responseData
-
-      // Check if statusCode is 200 within the response data
-      if (responseData.containsKey('statusCode') && responseData['statusCode'] == 200) {
-        // Decode the body field
-        Map<String, dynamic> bodyData = json.decode(responseData['body']);
-        // Debugging decoded body
-
-        // Extract the jwtToken and action from the body
-        String jwtToken = bodyData['jwtToken'];
-        GlobalData().setJwtToken(jwtToken);
-        GlobalData().setPhoneNumber(phoneNumber);
-        print('Decoded Body: $jwtToken');
-
-        // Save 'isAuthenticated', 'phoneNumber' and 'jwtToken' to SharedPreferences
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        await prefs.setBool('isAuthenticated', true);  // Save authentication status
-        await prefs.setString('phoneNumber', phoneNumber);  // Save the phone number
-        await prefs.setString('jwtToken', jwtToken);  // Save the JWT token
-
-        // Check for 'complete_signup' action
-        if (bodyData['action'] == 'complete_signup') {
-          List<Map<String, dynamic>> institutionData = bodyData.containsKey('institutions') && bodyData['institutions'] != null
-              ? List<Map<String, dynamic>>.from(bodyData['institutions']).map((institution) => {
-                  'SK': institution['SK'],
-                  'institution_name': institution['institution_name'],
-                }).toList()
-              : [];
-          // Debugging institution data
-
-          // Navigate to the SignUpPage with institution data
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => SignUpPage(
-                phoneNumber: phoneNumber,
-                jwtToken: jwtToken,
-                institutions: institutionData,
-              ),
-            ),
-          );
-        } else {
-          // Navigate to the MyHomePage after successful authentication
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => MyHomePage(
-                phoneNumber: phoneNumber,
-              ),
-            ),
-          );
-        }
-      } else {
-        print('Response Error: $responseData');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            duration: Duration(seconds: 5),
-            content: Text('Authentication failed. Please try again later.'),
-          ),
-        );
-      }
-    } else if (response.statusCode == 400) {
-      // Display error if OTP is invalid
-      final responseData = json.decode(response.body);
-      print('Response Error: $responseData');
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          duration: Duration(seconds: 5),
-          content: Text('Invalid OTP, please try again'),
-        ),
+  void verifyOtp(String phoneNumber, String otp, BuildContext context) async {
+    try {
+      final response = await http.post(
+        Uri.parse('https://innqn6dwv1.execute-api.ap-south-1.amazonaws.com/prod/User/Auth'),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonEncode(<String, String>{
+          "phone_number": phoneNumber,
+          "otp": otp,
+        }),
       );
+
+      if (response.statusCode == 200) {
+        Map<String, dynamic> responseData = json.decode(response.body);
+
+        if (responseData['statusCode'] == 200) {
+          Map<String, dynamic> bodyData = json.decode(responseData['body']);
+          String jwtToken = bodyData['jwtToken'];
+
+          SharedPreferences prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('isAuthenticated', true);
+          await prefs.setString('phoneNumber', phoneNumber);
+          await prefs.setString('jwtToken', jwtToken);
+
+          if (bodyData['action'] == 'complete_signup') {
+            List<Map<String, dynamic>> institutionData = bodyData['institutions'] != null
+                ? List<Map<String, dynamic>>.from(bodyData['institutions'])
+                : [];
+
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => SignUpPage(
+                  phoneNumber: phoneNumber,
+                  jwtToken: jwtToken,
+                  institutions: institutionData,
+                ),
+              ),
+            );
+          } else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MyHomePage(phoneNumber: phoneNumber),
+              ),
+            );
+          }
+        } else {
+          _showErrorSnackBar('Authentication failed. Please try again.');
+        }
+      } else if (response.statusCode == 400) {
+        _showErrorSnackBar('Invalid OTP, please try again.');
+      }
+    } catch (e) {
+      _showErrorSnackBar('An error occurred. Please try again.');
     }
-  } catch (e) {
-    print('Error during OTP verification: $e');
+  }
+
+  void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        duration: Duration(seconds: 5),
-        content: Text('An error occurred. Please try again.'),
+        duration: const Duration(seconds: 5),
+        content: Text(message),
       ),
     );
   }
-}
-
 
   @override
   Widget build(BuildContext context) {
-    final globalData = Provider.of<GlobalData>(context); // Accessing GlobalData
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          '',
-          style: TextStyle(
-            color: Color.fromARGB(255, 134, 134, 134),
-            fontSize: 35,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        title: const Text('Verify OTP', style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.black,
       ),
       backgroundColor: Colors.black,
@@ -194,19 +171,7 @@ void verifyOtp(String phoneNumber, String otp, BuildContext context) async {
             const SizedBox(height: 20),
             const Text(
               'Enter OTP',
-              style: TextStyle(
-                color: Color.fromARGB(255, 248, 248, 248),
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Sent to ${widget.email}',
-              style: TextStyle(
-                color: Colors.grey, // Grey text
-                fontSize: 14, // Smaller font size
-              ),
+              style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
             Row(
@@ -227,21 +192,18 @@ void verifyOtp(String phoneNumber, String otp, BuildContext context) async {
                     },
                     decoration: const InputDecoration(
                       counter: Offstage(),
-                      enabledBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: Colors.grey),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: Colors.white),
-                      ),
+                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
+                      focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white)),
                       filled: true,
-                      fillColor: Color.fromARGB(255, 255, 255, 255),
+                      fillColor: Colors.white,
                     ),
-                    style: const TextStyle(color: Color.fromARGB(255, 0, 0, 0)),
+                    style: const TextStyle(color: Colors.black),
                   ),
                 );
               }),
             ),
             const SizedBox(height: 40),
+            
             NeoPopTiltedButton(
               isFloating: true,
               decoration: const NeoPopTiltedButtonDecoration(
@@ -276,24 +238,7 @@ void verifyOtp(String phoneNumber, String otp, BuildContext context) async {
                 fontSize: 14,
               ),
             ),
-            const SizedBox(height: 10),
-             ElevatedButton(
-      onPressed: _isResendEnabled ? () {
-        // Retrieve data from the global class
-        String? email = globalData.getEmail();
-        String? name = globalData.getUserName();
-        String? phoneNumber = globalData.getPhoneNumber();
-
-        // Call sendOtp with retrieved values
-        if (email != null && name != null && phoneNumber != null) {
-          sendOtp(email, name, phoneNumber);
-        } else {
-          // Handle the case where data is not available
-          print('Global data not available.');
-        }
-      } : null,
-      child: const Text('Resend OTP'),
-    )
+            
           ],
         ),
       ),
