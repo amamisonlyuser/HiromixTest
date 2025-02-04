@@ -9,24 +9,35 @@ import 'send_otp_page.dart';
 import 'GlobalData.dart';
 import 'verify_otp_page.dart';
 import 'errorpage.dart';
+import 'package:go_router/go_router.dart';
+import 'package:flutter_web_plugins/flutter_web_plugins.dart';
+
+// Add these to pubspec.yaml:
+// dependencies:
+//   go_router: ^13.0.0
+//   flutter_web_plugins: 
+//     sdk: flutter
 
 void main() {
+  setUrlStrategy(PathUrlStrategy());
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => GlobalData()),
       ],
-      child: MyApp(),
+      child: const MyApp(),
     ),
   );
 }
+
+final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
       title: 'Flutter Demo',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSwatch(
@@ -35,35 +46,69 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         textTheme: const TextTheme().apply(fontFamily: 'InriaSerif'),
       ),
-      initialRoute: '/',
-      onGenerateRoute: _onGenerateRoute,  // Handle dynamic links here
+      routerConfig: _router,
     );
-  }
-
-  Route<dynamic> _onGenerateRoute(RouteSettings settings) {
-    Uri uri = Uri.parse(settings.name ?? '/');
-
-    // Check if URL matches /phoneNumber/otp
-    if (uri.pathSegments.length == 2 && uri.pathSegments[1] == 'otp') {
-      final phoneNumber = uri.pathSegments[0];
-      final otp = uri.queryParameters['otp'] ?? '';
-
-      return MaterialPageRoute(
-        builder: (context) => VerifyOtpPage(phoneNumber: phoneNumber, otp: otp),
-      );
-    }
-
-    // Default route if no match
-    // If the URL is `/`, return a default screen (RootPage)
-    if (uri.pathSegments.isEmpty) {
-      return MaterialPageRoute(builder: (context) => const RootPage());
-    }
-
-    // Handle other cases as needed
-    return MaterialPageRoute(builder: (context) => const ErrorPage()); // Add an ErrorPage for unexpected routes
   }
 }
 
+final GoRouter _router = GoRouter(
+  navigatorKey: _rootNavigatorKey,
+  initialLocation: '/',
+  routes: [
+    // Numeric pattern route (must come first)
+    GoRoute(
+      path: '/:phoneNumber([0-9]+)/:otp([0-9]+)',
+      pageBuilder: (context, state) {
+        final phoneNumber = state.pathParameters['phoneNumber']!;
+        final otp = state.pathParameters['otp']!;
+        return MaterialPage(
+          key: state.pageKey,
+          child: VerifyOtpPage(phoneNumber: phoneNumber, otp: otp),
+        );
+      },
+    ),
+    // Root page and other routes
+    GoRoute(
+      path: '/',
+      pageBuilder: (context, state) => MaterialPage(
+        key: state.pageKey,
+        child: const RootPage(),
+      ),
+      routes: [
+        GoRoute(
+          path: 'home',
+          pageBuilder: (context, state) => MaterialPage(
+            key: state.pageKey,
+            child: const MyHomePageWrapper(),
+          ),
+        ),
+        GoRoute(
+          path: 'sendOtp',
+          pageBuilder: (context, state) => MaterialPage(
+            key: state.pageKey,
+            child: const SendOtpPage(),
+          ),
+        ),
+      ],
+    ),
+  ],
+  redirect: (BuildContext context, GoRouterState state) async {
+    final prefs = await SharedPreferences.getInstance();
+    final isAuthenticated = prefs.getBool('isAuthenticated') ?? false;
+
+    // Check if we're already on a valid numeric route
+    if (state.matchedLocation.contains('/${state.pathParameters['phoneNumber']}/${state.pathParameters['otp']}')) {
+      return null; // Allow numeric pattern route to handle
+    }
+
+   // Handle redirect logic
+    if (state.uri.path == '/') {
+      return isAuthenticated ? '/home' : '/sendOtp';
+    }
+
+    return null;
+  },
+);
 
 class RootPage extends StatefulWidget {
   const RootPage({super.key});
@@ -80,20 +125,13 @@ class _RootPageState extends State<RootPage> {
   }
 
   void _checkAuthenticationStatus() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    bool isAuthenticated = prefs.getBool('isAuthenticated') ?? false;
+    final prefs = await SharedPreferences.getInstance();
+    final isAuthenticated = prefs.getBool('isAuthenticated') ?? false;
 
     if (isAuthenticated) {
-      String phoneNumber = prefs.getString('phoneNumber') ?? "1234567890";
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => MyHomePage(phoneNumber: phoneNumber)),
-      );
+      context.go('/home');
     } else {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const SendOtpPage()),
-      );
+      context.go('/sendOtp');
     }
   }
 
@@ -107,6 +145,17 @@ class _RootPageState extends State<RootPage> {
   }
 }
 
+class MyHomePageWrapper extends StatelessWidget {
+  const MyHomePageWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final prefs = Provider.of<SharedPreferences>(context);
+    final phoneNumber = prefs.getString('phoneNumber') ?? "1234567890";
+    return MyHomePage(phoneNumber: phoneNumber);
+  }
+}
+
 class MyHomePage extends StatefulWidget {
   final String phoneNumber;
 
@@ -117,47 +166,40 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _selectedIndex = 1; // Default to PollsPage
+  int _selectedIndex = 1;
   late String phoneNumber;
-  Map<String, dynamic> balances = {
-    'totalBalance': {'amount': 0.0},
-  };
+  Map<String, dynamic> balances = {'totalBalance': {'amount': 0.0}};
 
   @override
   void initState() {
     super.initState();
     phoneNumber = widget.phoneNumber;
-    _loadLastVisitedPage();  // Load the last visited page when the app starts
+    _loadLastVisitedPage();
   }
 
   Future<void> _loadLastVisitedPage() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _selectedIndex = prefs.getInt('lastVisitedPage') ?? 1; // Default to PollsPage if nothing is saved
+      _selectedIndex = prefs.getInt('lastVisitedPage') ?? 1;
     });
   }
 
   Future<void> _saveLastVisitedPage(int index) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('lastVisitedPage', index);
   }
 
-  void _loadBalances() {
-    setState(() {
-      balances = {
-        'totalBalance': {'amount': 100.0},
-      };
-    });
+  void _onItemTapped(int index) {
+    setState(() => _selectedIndex = index);
+    _saveLastVisitedPage(index);
   }
 
-  final List<IconData> _bottomNavBarIcons = [
-    Icons.person,
-    Icons.leaderboard,
-    Icons.home,
-    Icons.folder,
-    Icons.wallet,
-    Icons.attach_money,
-  ];
+  void _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isAuthenticated', false);
+    await prefs.remove('lastVisitedPage');
+    context.go('/');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -171,23 +213,6 @@ class _MyHomePageState extends State<MyHomePage> {
       body: pages[_selectedIndex],
       selectedIndex: _selectedIndex,
       onItemTapped: _onItemTapped,
-    );
-  }
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-    _saveLastVisitedPage(index);  // Save the selected index when the user navigates
-  }
-
-  void _logout() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isAuthenticated', false);
-    await prefs.remove('lastVisitedPage'); // Clear saved page on logout
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const RootPage()),
     );
   }
 }
