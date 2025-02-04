@@ -8,16 +8,18 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'AnimationPage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'GlobalData.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 
 class PollsPage extends StatefulWidget {
   final String phoneNumber;
-  final Function(List<Map<String, String>> selectedOptions) onSelectionComplete;
+  final String institution_short_name;
 
   const PollsPage({
     super.key,
     required this.phoneNumber,
-    required this.onSelectionComplete,
+     required this.institution_short_name,
+    
   });
 
   @override
@@ -29,7 +31,8 @@ class _PollsPageState extends State<PollsPage> {
   final List<Map<String, String>> _selectedOptions = [];
   late AudioPlayer audioPlayer; // Track the currently selected option ID
   late PageController _pageController;
-  late ScrollController _scrollController; // Scroll controller
+  late ScrollController _scrollController;
+  bool optionScrolled = false; // Scroll controller
 
   // Variable to store poll data
   List<dynamic> pollData = [];
@@ -45,49 +48,99 @@ class _PollsPageState extends State<PollsPage> {
     _scrollController = ScrollController();
 
     // Initialize the PageController with custom settings
-    // Assume currentQuestion['options'] is your list of options
-final int middleIndex = (pollData[0]['question']['options'].length / 2).floor();
-
-// Initialize _pageController with dynamic initialPage based on middleIndex
-_pageController = PageController(
-  viewportFraction: 0.5, // Pages take up half the screen width
-  initialPage: middleIndex, // Start at the middle of options list
-);
+    _pageController = PageController(
+      viewportFraction: 0.5, // Pages take up half the screen width
+      initialPage: 0, // Start at the first page
+    );
 
     _fetchPollData(); // Fetch poll data on initialization
   }
 
   // Function to fetch poll data from API
-  Future<void> _fetchPollData() async {
-    final apiUrl = 'https://innqn6dwv1.execute-api.ap-south-1.amazonaws.com/prod/User/GetPoll';
-    GlobalData globalData = GlobalData();
-    String? institutionShortName = globalData.getInstitutionShortName(); // Assuming this method exists
-    String? phoneNumber = globalData.getPhoneNumber(); 
-    // Define the JSON body
-    final data = {
-      "institution_short_name": institutionShortName,
-      "phone_number": phoneNumber
-    };
+ 
 
-    try {
-      final response = await http.post(
-        Uri.parse(apiUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(data),
-      );
 
-      // Check if the request was successful
-      if (response.statusCode == 200) {
+Future<void> _fetchPollData() async {
+  final apiUrl = 'https://innqn6dwv1.execute-api.ap-south-1.amazonaws.com/prod/User/GetPoll';
+  
+  // Retrieve data from widget properties
+  String? institutionShortName = widget.institution_short_name;
+  String? phoneNumber = widget.phoneNumber;
+  
+  // Log the data being passed to the API
+  print("Sending data to API: ");
+  print("Institution Short Name: $institutionShortName");
+  print("Phone Number: $phoneNumber");
+
+  // Define the JSON body to send to the API
+  final data = {
+    "institution_short_name": institutionShortName,
+    "phone_number": phoneNumber,
+  };
+  
+  // Log the complete JSON body
+  print("Request body: ${json.encode(data)}");
+
+  try {
+  // Make the POST request to the API
+  final response = await http.post(
+    Uri.parse(apiUrl),
+    headers: {'Content-Type': 'application/json'},
+    body: json.encode(data),
+  );
+
+  // Log the response from the server
+  print("Response Status: ${response.statusCode}");
+  print("Response Body: ${response.body}");
+
+  // Check if the request was successful
+  if (response.statusCode == 200) {
+    // Decode the response
+    final decodedResponse = json.decode(response.body);
+
+    // Check if 'polls' key exists and is a list
+    if (decodedResponse is Map && decodedResponse.containsKey('polls')) {
+      final pollsList = decodedResponse['polls'];
+
+      // Check if 'polls' is a list and is not empty
+      if (pollsList is List && pollsList.isNotEmpty) {
+        // Retrieve the poll_id from the first item in the 'polls' list
+        String? pollId = pollsList[0]['poll_id'];
+        print("Extracted Poll ID: $pollId");
+
+        // Update pollData with fetched polls
         setState(() {
-          pollData = json.decode(response.body)['polls']; // Update pollData with fetched polls
+          pollData = pollsList; 
         });
+
+        if (pollId != null) {
+          // Save poll_id to SharedPreferences
+          SharedPreferences prefs = await SharedPreferences.getInstance();
+          await prefs.setString('poll_id', pollId);
+          print("Poll ID saved to SharedPreferences: $pollId");
+        } else {
+          print("Poll ID not found in response.");
+        }
+
+        // Log the updated poll data
+        print("Poll Data: $pollData");
       } else {
-        print('Error: ${response.statusCode}, Response: ${response.body}');
+        print("Error: 'polls' is not a list or is empty.");
       }
-    } catch (e) {
-      print('Error: $e');
+    } else {
+      print("Error: Response does not contain 'polls' key or is not a valid object.");
     }
+  } else {
+    // Log error if status code is not 200
+    print('Error: ${response.statusCode}, Response: ${response.body}');
   }
+} catch (e) {
+  // Log any errors encountered during the request
+  print('Error: $e');
+}
+
+}
+
 
   void _onOptionSelected(dynamic option) {
   if (option is Map<String, dynamic>) {
@@ -109,35 +162,47 @@ _pageController = PageController(
     print("Option is not of expected type"); // Handle unexpected types
   }
 }
-  void _submitVote() async {
-    if (_selectedOptions.isNotEmpty) {
-      // Play sound for regular button press
-      await _playSound('buttonpressed.mp3');
+ void _submitVote() async {
+  await _playSound('buttonpressed.mp3');
+  setState(() {
+    if (_currentPollIndex < pollData[0]['questions'].length - 1) {
+      // Check if no option has been selected for the current question
+      if (_selectedOptions.isEmpty || 
+          _selectedOptions.length <= _currentPollIndex ||
+          _selectedOptions[_currentPollIndex].isEmpty) {
+        
+        // Select the middle option if it's not already selected
+        final currentQuestion = pollData[0]['questions'][_currentPollIndex];
+        if (currentQuestion['options'].isNotEmpty) {
+          final middleOption = currentQuestion['options'][currentQuestion['options'].length ~/ 2]; // Get the middle option
+          _onOptionSelected(middleOption);  // Select it automatically
+        }
+      }
 
-      if (_currentPollIndex < pollData[0]['questions'].length - 1) {
-        _currentPollIndex++;
-        _pageController.nextPage(
-          duration: const Duration(milliseconds: 1000),
-          curve: Curves.easeIn,
-        );
-        _selectedOptions.isNotEmpty; // Reset for the next question
-      } else {
-        // Play final submission sound
-        await _playSound('buttonfinal.mp3');
+      // Now move to the next poll question
+      _currentPollIndex++;
+      optionScrolled = false;
+    } else {
+      // If it's the last question, check if options are selected
+      if (_selectedOptions.isNotEmpty) {
+        _playSound('button_final.mp3');
+        optionScrolled = false;
 
-        // Update selectedOptionsProvider with selectedOptions
+        // Update selectedOptionsProvider with selectedOptions if needed
 
-        // Navigate directly to AnimationPage with selectedOptions
+        // Navigate to AnimationPage with selectedOptions
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (context) => AnimationPage(selectedOptions: _selectedOptions),
           ),
         );
+      } else {
+        print("No options selected"); // Handle case where no option is selected
       }
-    } else {
-      print("No options selected"); // Handle case where no option is selected
     }
-  }
+  });
+}
+
 
   Future<void> _playSound(String soundPath) async {
     try {
@@ -182,13 +247,21 @@ _pageController = PageController(
   }
 
 
+ final List<Color> _colorList = [
+    Color.fromARGB(255, 255, 135, 165), 
+    Color.fromARGB(255, 255, 135, 251), 
+    Color.fromARGB(255, 135, 255, 203), 
+    Color.fromARGB(255, 255, 223, 135), 
+    Color.fromARGB(255, 137, 218, 255), 
+  ];
+
    @override
 Widget build(BuildContext context) {
   if (pollData.isEmpty) {
     return Center(child: CircularProgressIndicator()); // Show loading indicator if pollData is empty
   }
   final currentQuestion = pollData[0]['questions'][_currentPollIndex];
-  
+   
   return Scaffold(
     appBar: AppBar(
       title: Row(
@@ -216,7 +289,7 @@ Widget build(BuildContext context) {
           },
         ),
       ),
-      backgroundColor: Colors.black, // Set the app bar color to black
+      backgroundColor: const Color.fromARGB(255, 0, 0, 0), // Set the app bar color to black
       iconTheme: const IconThemeData(color: Colors.grey), // Grey icon color
     ),
       body: Container(
@@ -230,48 +303,65 @@ Widget build(BuildContext context) {
     alignment: Alignment.center,
     children: [
       // Background dots image
-      Positioned.fill(
-        child: Image.asset(
-          'assets/dots_black.png',
-          fit: BoxFit.cover,
-        ),
-      ),
+     
       // Question box
       Container(
-        height: 140,
-        padding: const EdgeInsets.all(10.0),
-        decoration: BoxDecoration(
-          color: const Color.fromARGB(255, 250, 215, 155), // Sample color
-          borderRadius: BorderRadius.circular(5),
-          border: Border.all(color: const Color.fromARGB(255, 15, 15, 15), width: 2),
-        ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Center(
-              child: Text(
-                currentQuestion['question'],
-                style: GoogleFonts.blackHanSans(
-                  color: const Color.fromARGB(255, 255, 255, 255),
-                  fontSize: 16.0,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
+                  height: 140,
+                  padding: const EdgeInsets.all(0.0),
+                 decoration: BoxDecoration(
+                color: _colorList[_currentPollIndex % _colorList.length], // Change color
+                borderRadius: BorderRadius.circular(0),
               ),
-            ),
-            // Positioned stars icon
-            Positioned(
-              top: 5, // Adjust this value to move the image down
-              right: 0, // Adjust this value to move the image to the right
-              child: SvgPicture.asset(
-                'assets/starsfinal.svg',
-                height: 40, // Adjust the size as needed
-                width: 40,
-              ),
-            ),
-          ],
-        ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(0.0), // Inner gap of 5px
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: const Color.fromARGB(255, 255, 230, 230), // Inner border color
+                          width: 6, // Inner border width
+                        ),
+                        borderRadius: BorderRadius.circular(2.0), // Rounded corners for inner border
+                      ),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          // Custom Grid Texture
+                          CustomPaint(
+                            size: Size(double.infinity, double.infinity), // Fill the entire container
+                            painter: GridPainter(),
+                          ),
+
+                          // Centered Question Text
+                          Center(
+                            child: Text(
+                              currentQuestion['question'],
+                              style: GoogleFonts.playfairDisplay(
+                                color: const Color.fromARGB(255, 0, 0, 0), // Luxury black
+                                fontSize: 20.0,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+
+                          Positioned(
+                            top: 0, // Adjust for vertical positioning
+                            right: 5, // Adjust for horizontal positioning
+                            child: SvgPicture.asset(
+                              'assets/starsfinal.svg',
+                              height: 40, // Size of the star icon
+                              width: 40,
+                            )
+                          )
+          
+          
+        ],
       ),
+    ),
+  ),
+)
+
+
     ],
   ),
 ),
@@ -279,15 +369,24 @@ Widget build(BuildContext context) {
   child: PageView.builder(
     itemCount: currentQuestion['options'].length,
     controller: _pageController,
-    onPageChanged: (index) {
+     // Flag to track if the option has been scrolled or selected manually
+
+onPageChanged: (index) {
   // Ensure the current question has options
   if (currentQuestion['options'].isNotEmpty) {
+
+     setState(() {
+      optionScrolled = true;  // User has scrolled to an option
+    });
     // Set the selected option
     _onOptionSelected(currentQuestion['options'][index]);
 
     // Play sound and vibrate for feedback
     _playSound('tick_tock_sound.mp3');
     _vibrate();
+    
+    // Mark that the user has manually scrolled and selected an option
+   
   } else {
     print("No options found for this poll."); // Handle as needed
   }
@@ -340,7 +439,7 @@ itemBuilder: (context, index) {
                         child: isSelected
                             ? const Icon(
                                 Icons.check_circle,
-                                color: Color.fromARGB(255, 92, 231, 145),
+                                color: const Color.fromARGB(255, 14, 255, 187),
                                 size: 40,
                               )
                             : null,
@@ -370,7 +469,7 @@ itemBuilder: (context, index) {
   child: Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      if (_currentPollIndex == 0 && _selectedOptions.isEmpty)
+      if (_currentPollIndex == 0 && _selectedOptions.isEmpty & !optionScrolled)
         SizedBox(
           height: 50,
           child: Center( // Wrap with Center widget
@@ -387,7 +486,24 @@ itemBuilder: (context, index) {
             ),
           ),
         )
-                  else if (_selectedOptions.isNotEmpty)
+        else if (!optionScrolled)
+        SizedBox(
+          height: 50,
+          child: Center( // Wrap with Center widget
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              scrollDirection: Axis.horizontal,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                child: Text(
+                  '< SCROLL >',
+                  style: const TextStyle(color: Colors.white, fontSize: 16.0),
+                ),
+              ),
+            ),
+          ),
+        )
+                  else if (_selectedOptions.isNotEmpty & optionScrolled )
                     Center(
                           child: NeoPopTiltedButton(
                             isFloating: true,
@@ -414,5 +530,34 @@ itemBuilder: (context, index) {
         ),
       ),
     );
+  }
+}
+
+ 
+
+class GridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    Paint paint = Paint()
+      ..color = const Color.fromARGB(255, 17, 17, 17).withOpacity(0.2) // White grid lines with slight opacity for subtle effect
+      ..strokeWidth = 1.0;
+
+    double rowSpacing = 20.0; // Spacing between rows
+    double colSpacing = 20.0; // Spacing between columns
+
+    // Drawing vertical lines
+    for (double x = 0; x < size.width; x += colSpacing) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+
+    // Drawing horizontal lines
+    for (double y = 0; y < size.height; y += rowSpacing) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return false; // No need to repaint the grid lines
   }
 }

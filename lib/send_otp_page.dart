@@ -117,7 +117,7 @@ class _SendOtpPageState extends State<SendOtpPage> {
                 sendOtp(_emailController.text, _nameController.text, _phoneController.text); // Function to send OTP
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => VerifyOtpPage(phoneNumber: _phoneController.text)), // Navigate to OTP verification page
+                  MaterialPageRoute(builder: (context) => VerifyOtpPage(phoneNumber: _phoneController.text , email: _emailController.text,)), // Navigate to OTP verification page
                 );
               },
               child: Padding(

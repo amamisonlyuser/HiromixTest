@@ -1,15 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'PortfolioHistoryPage.dart';
-
 import 'PollsPage.dart';
 import 'ProfileTemplatePage.dart';
 import 'WalletTemplatePage.dart';
-import 'FantasyBetsPage.dart';
 import 'custom_navigator.dart';
 import 'send_otp_page.dart';
-import 'SelectedOptionsProvider.dart';
 import 'GlobalData.dart';
 
 void main() {
@@ -17,14 +13,12 @@ void main() {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => GlobalData()),
-        ChangeNotifierProvider(create: (_) => SelectedOptionsProvider()), // Add SelectedOptionsProvider here
         // Add other providers as needed
       ],
       child: MyApp(),
     ),
   );
 }
-
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -38,57 +32,9 @@ class MyApp extends StatelessWidget {
           primarySwatch: Colors.grey,
         ).copyWith(secondary: Colors.white),
         useMaterial3: true,
-
-        // Hardcode the entire text theme to use Inria Serif
-        textTheme: const TextTheme(
-          bodyLarge: TextStyle(
-            fontFamily: 'InriaSerif', // Set Inria Serif globally
-          ),
-          bodyMedium: TextStyle(
-            fontFamily: 'InriaSerif',
-          ),
-          bodySmall: TextStyle(
-            fontFamily: 'InriaSerif',
-          ),
-          displayLarge: TextStyle(
-            fontFamily: 'InriaSerif',
-          ),
-          displayMedium: TextStyle(
-            fontFamily: 'InriaSerif',
-          ),
-          displaySmall: TextStyle(
-            fontFamily: 'InriaSerif',
-          ),
-          headlineLarge: TextStyle(
-            fontFamily: 'InriaSerif',
-          ),
-          headlineMedium: TextStyle(
-            fontFamily: 'InriaSerif',
-          ),
-          headlineSmall: TextStyle(
-            fontFamily: 'InriaSerif',
-          ),
-          titleLarge: TextStyle(
-            fontFamily: 'InriaSerif',
-          ),
-          titleMedium: TextStyle(
-            fontFamily: 'InriaSerif',
-          ),
-          titleSmall: TextStyle(
-            fontFamily: 'InriaSerif',
-          ),
-          labelLarge: TextStyle(
-            fontFamily: 'InriaSerif',
-          ),
-          labelMedium: TextStyle(
-            fontFamily: 'InriaSerif',
-          ),
-          labelSmall: TextStyle(
-            fontFamily: 'InriaSerif',
-          ),
-        ),
+        textTheme: const TextTheme().apply(fontFamily: 'InriaSerif'),
       ),
-      home: const RootPage(), // Define your home page here
+      home: const RootPage(), // Use RootPage to check auth status
     );
   }
 }
@@ -145,13 +91,25 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _selectedIndex = 2; // Set Home Page as the default page
+  int _selectedIndex = 1; // Set PollsPage as the initial index
   late String phoneNumber;
+  Map<String, dynamic> balances = {
+    'totalBalance': {'amount': 0.0}, // Default value for initialization
+  };
 
   @override
   void initState() {
     super.initState();
     phoneNumber = widget.phoneNumber;
+  }
+
+  void _loadBalances() {
+    // Fetch balances from a service or database if needed
+    setState(() {
+      balances = {
+        'totalBalance': {'amount': 100.0}, // Replace with actual fetch logic
+      };
+    });
   }
 
   final List<IconData> _bottomNavBarIcons = [
@@ -163,33 +121,22 @@ class _MyHomePageState extends State<MyHomePage> {
     Icons.attach_money // Icon for Fantasy Bets Page
   ];
 
+
+
+
+
   @override
   Widget build(BuildContext context) {
-    final selectedOptionsProvider = Provider.of<SelectedOptionsProvider>(context);
-   // Initialize as an empty map or with default values
-Map<String, dynamic> balances = {
-  'totalBalance': {
-    'amount': 0.0, // Ensure this is a double
-  },
-  // Add other balances here if needed
-};
 
-// Ensure the pages accept the entire balances map
-final List<Widget> pages = <Widget>[
-  ProfileTemplatePage(balances: balances), // Pass the entire balances map
-  
-  PollsPage(
-    phoneNumber: phoneNumber,
-    onSelectionComplete: (options) {
-      selectedOptionsProvider.updateSelectedOptions(options);
-    },
-  ),
-  const PortfolioHistoryPage(),
-  WalletTemplatePage(balances: balances), // Pass the entire balances map
-  FantasyBetsPage(selectedOptions: selectedOptionsProvider.selectedOptions),
-];
-
-
+    final List<Widget> pages = <Widget>[
+      ProfileTemplatePage(balances: balances),
+      PollsPage(
+        phoneNumber: phoneNumber,
+        institution_short_name:"XIE", 
+      ),
+      WalletTemplatePage(balances: balances),
+      
+    ];
 
     return CustomScaffold(
       body: pages[_selectedIndex],
@@ -212,4 +159,4 @@ final List<Widget> pages = <Widget>[
       MaterialPageRoute(builder: (context) => const RootPage()),
     );
   }
-} 
+}

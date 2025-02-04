@@ -16,13 +16,18 @@ class CustomScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final List<IconData> bottomNavBarIcons = [
-      Icons.person,
-      Icons.leaderboard,
-      Icons.home,
-      Icons.folder,
-      Icons.wallet,
-      Icons.attach_money
+      Icons.person,  
+      Icons.home,     // Profile
+      Icons.wallet,       // Wallet
+               // Home (PollsPage)
+      Icons.attach_money  // Fantasy
     ];
+
+    // Check if selectedIndex is within valid range
+    int safeSelectedIndex = selectedIndex;
+    if (safeSelectedIndex < 0 || safeSelectedIndex >= bottomNavBarIcons.length) {
+      safeSelectedIndex = 0;  // Default to the first index if invalid
+    }
 
     return Scaffold(
       body: body,
@@ -34,17 +39,13 @@ class CustomScaffold extends StatelessWidget {
             label: index == 0
                 ? 'Profile'
                 : index == 1
-                    ? 'Activity'
+                    ? 'Home'
                     : index == 2
-                        ? 'Home'
-                        : index == 3
-                            ? 'Portfolio'
-                            : index == 4
-                                ? 'Wallet'
-                                : 'Fantasy',
+                        ? 'Wallet'
+                        : 'Fantasy',
           ),
         ),
-        currentIndex: selectedIndex,
+        currentIndex: safeSelectedIndex,  // Use safeSelectedIndex
         type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.black,
         selectedItemColor: const Color.fromARGB(255, 189, 189, 189),
@@ -54,3 +55,4 @@ class CustomScaffold extends StatelessWidget {
     );
   }
 }
+

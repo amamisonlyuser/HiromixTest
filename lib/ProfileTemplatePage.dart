@@ -4,14 +4,16 @@ import 'send_otp_page.dart'; // Import your SendOtpPage here for navigation
 import 'package:neopop/neopop.dart';
 
 class ProfileTemplatePage extends StatelessWidget {
-  final Map<String, dynamic> balances; // Change to Map<String, dynamic>
+  final Map<String, dynamic> balances;
 
   const ProfileTemplatePage({super.key, required this.balances});
 
   @override
   Widget build(BuildContext context) {
-    // Extract totalAmount from balances
-    final totalAmount = balances['Total_balance']['amount'].toString(); // Get the amount as a string
+    // Null check for 'balances' and 'Total_balance'
+    final totalAmount = (balances['Total_balance'] != null && balances['Total_balance']['amount'] != null)
+        ? balances['Total_balance']['amount'].toString()
+        : '0.00'; // Default to '0.00' if null
 
     return Scaffold(
       appBar: AppBar(
@@ -160,6 +162,7 @@ class ProfileTemplatePage extends StatelessWidget {
       ),
     );
   }
+
 
   Widget _buildListTile(String title) {
     return Container(

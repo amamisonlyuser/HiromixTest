@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'main.dart';
+import 'PollsPage.dart';
 import 'package:neopop/neopop.dart' as neopop;
-import 'GlobalData.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // Import SharedPreferences
+
 
  // Import the GlobalData class
 
@@ -28,22 +29,15 @@ class SignUpPage extends StatefulWidget {
 }
 
 class _SignUpPageState extends State<SignUpPage> {
-  final _formKey = GlobalKey<FormState>();
 
   String? _firstName;
   String? _lastName;
-  String? _institutionName; // This might be nullable, so no `!` here directly
+  String? _selectedInstitution;
   String _institutionShortName = ''; // Default to an empty string if it should not be null
-
   int? _age;
   String? _gender;
   String? _state;
   String? _city;
-
-  // To track selected institution
-  String? _selectedInstitution;
-
-
 
   final PageController _pageController = PageController();
   int _currentPage = 0;
@@ -59,128 +53,168 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   @override
-Widget build(BuildContext context) {
-  return Scaffold(
-    appBar: AppBar(
-      title: const Text('Complete Signup'),
-      backgroundColor: Colors.black,
-    ),
-    body: PageView(
-      controller: _pageController,
-      physics: const NeverScrollableScrollPhysics(),
-      children: [
-        InstitutionPage(
-          onNext: (selectedInstitution, shortName, state, city) {
-            setState(() {
-              _selectedInstitution = selectedInstitution;
-              _institutionShortName = shortName;
-              _state = state;
-              _city = city;
-            });
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Complete Signup'),
+        backgroundColor: Colors.black,
+      ),
+      body: PageView(
+        controller: _pageController,
+        physics: const NeverScrollableScrollPhysics(),
+        children: [
+          InstitutionPage(
+            onNext: (selectedInstitution, shortName, state, city) {
+              setState(() {
+                _selectedInstitution = selectedInstitution;
+                _institutionShortName = shortName;
+                _state = state;
+                _city = city;
+              });
+              _nextPage();
+            },
+            institutions: widget.institutions,
+          ),
+          GenderPage(onNext: (value) {
+            setState(() => _gender = value);
             _nextPage();
-          },
-          institutions: widget.institutions, // Pass the list of institutions
-        ),
-        GenderPage(onNext: (value) {
-          setState(() => _gender = value);
-          _nextPage();
-        }),
-        FirstNamePage(onNext: (value) {
-          setState(() => _firstName = value);
-          _nextPage();
-        }),
-        LastNamePage(onNext: (value) {
-          setState(() => _lastName = value);
-          _nextPage();
-        }),
-        AgePage(onNext: (value) {
-          setState(() => _age = value);
-          _nextPage();
-        }),
-        
-        
-        SummaryPage(data: {
-          'First Name': _firstName,
-          'Last Name': _lastName,
-          'Institution': _selectedInstitution,
-          'Institution Short Name': _institutionShortName,
-          'Age': _age.toString(),
-          'Gender': _gender,
-          'State': _state,
-          'City': _city,
-        }),
-      ],
-    ),
-  );
+          }),
+          FirstNamePage(onNext: (value) {
+            setState(() => _firstName = value);
+            _nextPage();
+          }),
+          LastNamePage(onNext: (value) {
+            setState(() => _lastName = value);
+            _nextPage();
+          }),
+          AgePage(onNext: (value) {
+            setState(() => _age = value);
+            _nextPage();
+          }),
+          // Pass data to SummaryPage
+          SummaryPage(data: {
+            'phone_number': widget.phoneNumber,
+            'institution_short_name': _institutionShortName,
+            'institution_name': _selectedInstitution,
+            'first_name': _firstName,
+            'last_name': _lastName,
+            'age': _age?.toString(),
+            'gender': _gender,
+            'state': _state,
+            'city': _city,
+            'jwt_token': widget.jwtToken,
+          }),
+        ],
+      ),
+    );
+  }
 }
 
 
 
-  Future<void> _completeSignup() async {
-    if (_formKey.currentState!.validate()) {
-      _formKey.currentState!.save();
+class SummaryPage extends StatelessWidget {
+  final Map<String, String?> data;
 
-      // Check for null values before creating the signup data
-      if (_firstName == null || _lastName == null ||  
-          _institutionName == null || _age == null || _gender == null ||
-          _state == null || _city == null) {
-        // Handle error (show a message or log)
-        print('Please ensure all fields are filled out properly.');
-        return;
-      }
+  const SummaryPage({super.key, required this.data});
 
-      // Create the body for the POST request
-      final Map<String, dynamic> signupData = {
-        "phone_number": widget.phoneNumber,
-        "institution_short_name": _institutionShortName,
-        "institution_name": _institutionName,
-        "first_name": _firstName,
-        "last_name": _lastName,
-        "age": _age,
-        "gender": _gender,
-        "state": _state,
-        "city": _city,
-        "jwt_token": widget.jwtToken, // Include the JWT token
-      };
+  // Function to send POST request for signup
+  Future<void> _sendSignupRequest(BuildContext context) async {
+    const apiUrl = 'https://innqn6dwv1.execute-api.ap-south-1.amazonaws.com/prod/User/SignUp';
 
-      // Send the POST request
+    // Request body without the "body" wrapper
+    final requestBody = {
+      'phone_number': data['phone_number'] ?? '',
+      'institution_short_name': data['institution_short_name'] ?? '',
+      'institution_name': data['institution_name'] ?? '',
+      'first_name': data['first_name'] ?? '',
+      'last_name': data['last_name'] ?? '',
+      'age': int.tryParse(data['age'] ?? '0') ?? 0,
+      'gender': data['gender'] ?? '',
+      'state': data['state'] ?? '',
+      'city': data['city'] ?? '',
+      'jwt_token': data['jwt_token'] ?? '',
+    };
+
+    try {
       final response = await http.post(
-        Uri.parse('https://innqn6dwv1.execute-api.ap-south-1.amazonaws.com/prod/User/SignUp'),
-        headers: <String, String>{
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
-        body: jsonEncode({"body": jsonEncode(signupData)}),
+        Uri.parse(apiUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(requestBody),
       );
 
       if (response.statusCode == 200) {
-        // Successful signup
-        
-        // Save data to GlobalData
-        GlobalData().setPhoneNumber(widget.phoneNumber);
-        GlobalData().setFirstName('$_firstName');
-        GlobalData().setLastName('$_lastName');
-        GlobalData().setInstitutionShortName(_institutionShortName);
-        GlobalData().setInstitutionName('$_institutionName');
-        GlobalData().setAge(_age!);
-        GlobalData().setGender('$_gender');
-        GlobalData().setState('$_state');
-        GlobalData().setCity('$_city');
+        try {
+          final responseData = json.decode(response.body);
+          print('Signup successful: $responseData');
 
-        // Navigate to MyHomePage
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => MyHomePage(phoneNumber: widget.phoneNumber)),
-        );
+          // Save each value to SharedPreferences
+          SharedPreferences prefs = await SharedPreferences.getInstance();
+          
+          // Iterate over requestBody and save each item
+          for (String key in requestBody.keys) {
+            var value = requestBody[key];
+            
+            // Store value as appropriate type
+            if (value is int) {
+              await prefs.setInt(key, value);
+            } else if (value is String) {
+              await prefs.setString(key, value);
+            }
+          }
+
+          // Additional flag for authentication
+          await prefs.setBool('isAuthenticated', true);  // Set user as authenticated
+
+          // Navigate to PollsPage after successful signup
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PollsPage(
+                phoneNumber: data['phone_number'] ?? '',
+                institution_short_name: data['institution_short_name'] ?? '',
+              ),
+            ),
+          );
+        } catch (e) {
+          print('Response is not in JSON format: ${response.body}');
+        }
       } else {
-        // Handle error
-        print('Signup failed: ${response.body}');
+        print('Failed to signup: Status Code ${response.statusCode} - ${response.body}');
       }
+    } catch (e) {
+      print('Error during signup: $e');
     }
   }
 
+  // Initialize the current page indexes
   
-  
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ...data.entries.map((entry) {
+            return Text('${entry.key}: ${entry.value ?? ''}');
+          }).toList(),
+          const SizedBox(height: 30),
+          Center(
+            child: ElevatedButton(
+              onPressed: () {
+                // Call the signup function with extracted data and context
+                _sendSignupRequest(context);
+              },
+              child: const Text('Submit Signup'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
+
 
 
 class FirstNamePage extends StatelessWidget {
@@ -571,91 +605,6 @@ class _InstitutionPageState extends State<InstitutionPage> {
 
 
 
-class AgePage extends StatefulWidget {
-  final ValueChanged<int> onNext;
-
-  const AgePage({super.key, required this.onNext});
-
-  @override
-  _AgePageState createState() => _AgePageState();
-}
-
-class _AgePageState extends State<AgePage> {
-  int selectedAge = 5;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 0, 0, 0), // Black background
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              'Enter your age',
-              style: TextStyle(
-                fontSize: 30, // Increased font size for consistency
-                color: Colors.white, // White text color
-              ),
-            ),
-            const SizedBox(height: 30),
-            SizedBox(
-              height: 200, // Adjust height to make the picker visible
-              child: CupertinoPicker(
-                backgroundColor: const Color.fromARGB(255, 0, 0, 0), // Match background color
-                itemExtent: 40.0, // Height of each item
-                scrollController: FixedExtentScrollController(initialItem: selectedAge - 5),
-                onSelectedItemChanged: (int index) {
-                  setState(() {
-                    selectedAge = index + 5;
-                  });
-                },
-                children: List<Widget>.generate(86, (int index) {
-                  return Center(
-                    child: Text(
-                      (index + 5).toString(),
-                      style: const TextStyle(color: Colors.white), // White text color
-                    ),
-                  );
-                }),
-              ),
-            ),
-            const SizedBox(height: 60), // Increased space for consistency
-            Center(
-              child: SizedBox(
-                height: 80, // Button height
-                child: neopop.NeoPopTiltedButton(
-                  isFloating: true, // Make the button floating
-                  decoration: const neopop.NeoPopTiltedButtonDecoration(
-                    color: Colors.white, // White button background
-                    plunkColor: Color.fromARGB(255, 212, 212, 212), // Light gray for the plunk effect
-                    shadowColor: Color.fromARGB(255, 54, 54, 54), // Shadow color
-                  ),
-                  onTapUp: () {
- // Check if selectedAge is not null
-                    widget.onNext(selectedAge); // Call the onNext function with selectedAge
-                                    },
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 70.0, vertical: 20), // Padding around the button text
-                    child: Text(
-                      'Next', // Button label
-                      style: TextStyle(
-                        color: Color.fromARGB(255, 0, 0, 0), // Black text on the button
-                        fontSize: 18, // Font size
-                        fontWeight: FontWeight.bold, // Bold text
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 
  
@@ -795,107 +744,90 @@ class _GenderPageState extends State<GenderPage> {
 }
 
 
-class SummaryPage extends StatelessWidget {
-  final Map<String, String?> data;
 
-  const SummaryPage({super.key, required this.data});
 
-  // Function to send POST request for signup
-  Future<void> _sendSignupRequest(
-  String phoneNumber,
-  String institutionShortName,
-  String institutionName,
-  String firstName,
-  String lastName,
-  int age,
-  String gender,
-  String state,
-  String city,
-  String jwtToken,
-) async {
-  const apiUrl = 'https://innqn6dwv1.execute-api.ap-south-1.amazonaws.com/prod/User/SignUp';
 
-  // Request body without the "body" wrapper
-  final requestBody = {
-    'phone_number': phoneNumber,
-    'institution_short_name': institutionShortName,
-    'institution_name': institutionName,
-    'first_name': firstName,
-    'last_name': lastName,
-    'age': age,
-    'gender': gender,
-    'state': state,
-    'city': city,
-    'jwt_token': jwtToken,
-  };
+class AgePage extends StatefulWidget {
+  final ValueChanged<int> onNext;
 
-  try {
-    final response = await http.post(
-      Uri.parse(apiUrl),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode(requestBody),
-    );
+  const AgePage({super.key, required this.onNext});
 
-    if (response.statusCode == 200) {
-      try {
-        final responseData = json.decode(response.body);
-        print('Signup successful: $responseData $requestBody');
-      } catch (e) {
-        print('Response is not in JSON format: ${response.body}');
-      }
-    } else {
-      print('Failed to signup: Status Code ${response.statusCode} - ${response.body}');
-    }
-  } catch (e) {
-    print('Error during signup: $e');
-  }
+  @override
+  _AgePageState createState() => _AgePageState();
 }
 
+class _AgePageState extends State<AgePage> {
+  int selectedAge = 5;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ...data.entries.map((entry) {
-            return Text('${entry.key}: ${entry.value ?? ''}');
-          }).toList(),
-          const SizedBox(height: 30),
-          Center(
-            child: ElevatedButton(
-              onPressed: () {
-                // Extract data from the provided map
-                final String phoneNumber = data['phone_number'] ?? '';
-                final String institutionShortName = data['institution_short_name'] ?? '';
-                final String institutionName = data['institution_name'] ?? '';
-                final String firstName = data['first_name'] ?? '';
-                final String lastName = data['last_name'] ?? '';
-                final int age = int.tryParse(data['age'] ?? '0') ?? 0;
-                final String gender = data['gender'] ?? '';
-                final String state = data['state'] ?? '';
-                final String city = data['city'] ?? '';
-                final String jwtToken = data['jwt_token'] ?? '';
-
-                // Call the signup function with extracted data
-                _sendSignupRequest(
-                  phoneNumber,
-                  institutionShortName,
-                  institutionName,
-                  firstName,
-                  lastName,
-                  age,
-                  gender,
-                  state,
-                  city,
-                  jwtToken,
-                );
-              },
-              child: const Text('Submit Signup'),
+    return Scaffold(
+      backgroundColor: const Color.fromARGB(255, 0, 0, 0), // Black background
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              'Enter your age',
+              style: TextStyle(
+                fontSize: 30, // Increased font size for consistency
+                color: Colors.white, // White text color
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 30),
+            SizedBox(
+              height: 200, // Adjust height to make the picker visible
+              child: CupertinoPicker(
+                backgroundColor: const Color.fromARGB(255, 0, 0, 0), // Match background color
+                itemExtent: 40.0, // Height of each item
+                scrollController: FixedExtentScrollController(initialItem: selectedAge - 5),
+                onSelectedItemChanged: (int index) {
+                  setState(() {
+                    selectedAge = index + 5;
+                  });
+                },
+                children: List<Widget>.generate(86, (int index) {
+                  return Center(
+                    child: Text(
+                      (index + 5).toString(),
+                      style: const TextStyle(color: Colors.white), // White text color
+                    ),
+                  );
+                }),
+              ),
+            ),
+            const SizedBox(height: 60), // Increased space for consistency
+            Center(
+              child: SizedBox(
+                height: 80, // Button height
+                child: neopop.NeoPopTiltedButton(
+                  isFloating: true, // Make the button floating
+                  decoration: const neopop.NeoPopTiltedButtonDecoration(
+                    color: Colors.white, // White button background
+                    plunkColor: Color.fromARGB(255, 212, 212, 212), // Light gray for the plunk effect
+                    shadowColor: Color.fromARGB(255, 54, 54, 54), // Shadow color
+                  ),
+                  onTapUp: () {
+ // Check if selectedAge is not null
+                    widget.onNext(selectedAge); // Call the onNext function with selectedAge
+                                    },
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 70.0, vertical: 20), // Padding around the button text
+                    child: Text(
+                      'Next', // Button label
+                      style: TextStyle(
+                        color: Color.fromARGB(255, 0, 0, 0), // Black text on the button
+                        fontSize: 18, // Font size
+                        fontWeight: FontWeight.bold, // Bold text
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

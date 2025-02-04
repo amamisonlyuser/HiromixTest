@@ -17,6 +17,7 @@ class DummyResultsPage extends StatelessWidget {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
+        
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

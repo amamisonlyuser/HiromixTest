@@ -3,14 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:neopop/neopop.dart'; // Ensure to import NeoPop package
 import 'LeaderboardPage.dart';
-import 'main.dart'; 
 import 'WalletTemplatePage.dart'; 
 import 'ProfileTemplatePage.dart'; 
 import 'PaymentSuccessPage.dart'; 
 import 'dart:convert'; // For JSON encoding and decoding
 import 'package:http/http.dart' as http;
 import 'DummyResultsPage.dart';
-
+import 'package:shared_preferences/shared_preferences.dart';
+import 'shop.dart'; 
 
 class FantasyBetsPage extends StatefulWidget {
   final List<Map<String, String>> selectedOptions;
@@ -23,8 +23,6 @@ class FantasyBetsPage extends StatefulWidget {
 
 class _FantasyBetsPageState extends State<FantasyBetsPage> with TickerProviderStateMixin {
   late AnimationController _controller;
-  late List<String> _animationSequence;
-  int _currentAnimationIndex = 0;
   Timer? _timer;
   late PageController _pageController;
   late PageController _teamController;
@@ -39,105 +37,271 @@ class _FantasyBetsPageState extends State<FantasyBetsPage> with TickerProviderSt
   Map<int, List<List<Map<String, dynamic>>>> _yourTeamRankingsData = {};
   bool _userWin = false;
   String? _userRank = '0';
-  // Add this line in your state class
-
+ late AnimationController _animationController;
+  bool _showLottieAnimation = false;
+  int _currentImageIndex = 0;
   
+  
+
+  // Add this line in your state class
+ // Each item in the list is a list of paragraphs (strings)
+  // Image sequence and index
+List<dynamic> _contentSequence = [
+
+  'assets/1stwinners.png', 
+  'assets/2ndwinners.png',  
+  'assets/3rdwinners.png',  // Image
+    // Lottie animation
+   // Image
+   // Lottie animation
+    // Image
+   // Lottie animation
+];
+  // Start the image sequence
+  // Start the content sequence (image and Lottie animations)
+  void _startContentSequence() {
+    _playNextContent();
+  }
+
+    int _currentContentIndex = 0;
+
+  // Play the next image in sequence
+ /// Play the next content (image or animation) in sequence
  
-  @override
-  void initState() {
-    super.initState();
+ // Build the animation box to display images or Lottie animations in a sequence
+  Widget _buildAnimationBox() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        SizedBox(
+  height: 225,
+  width: 300,
+  child: Center(
+    child: _showLottieAnimation
+        ? Lottie.asset(
+            'assets/fire.json', // Replace with your Lottie animation path
+            fit: BoxFit.cover,
+            controller: _animationController,
+            onLoaded: (composition) {
+              _animationController.duration = composition.duration;
+              _animationController.reset();
+              _animationController.forward();
+            },
+          )
+        : Transform.translate(
+            offset: Offset(25, 0),  // Adjust this value to control the horizontal shift
+            child: Image.asset(
+              _contentSequence[_currentImageIndex],
+              fit: BoxFit.cover,
+            ),
+          ),
+  ),
+),
 
-    _animationSequence = [
-      'assets/10xwins_slowed.json',
-      'assets/5xwins_slowed.json',
-      'assets/2xwins_slowed.json',
-    ];
 
-    _controller = AnimationController(vsync: this);
+        const SizedBox(height: 20),
+        if (_resultsLive) ...[
+          // Display 'Results Live' button if results are live
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color.fromARGB(255, 0, 0, 0), // Button background color (black)
+              foregroundColor: const Color.fromARGB(255, 255, 255, 255), // Text color (white)
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(2),
+                side: const BorderSide(
+                  color: Colors.white, // Border color
+                  width: 1.0, // Border width
+                ),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15), // Padding for the button
+            ),
+            onPressed: () {
+              // Navigate to a dummy results page
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const DummyResultsPage(), // Replace with your results page
+                ),
+              );
+            },
+            child: const Text(
+              'Results Live',
+              style: TextStyle(
+                color: Color.fromARGB(255, 0, 255, 145), // Set the text color to green
+              ),
+            ),
+          ),
+        ] else if (_paymentSuccessful) ...[
+          // Display 'Trade is live' button if payment is successful
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color.fromARGB(255, 0, 0, 0), // Button background color (black)
+              foregroundColor: const Color.fromARGB(255, 29, 255, 153), // Text color (green)
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(2),
+                side: const BorderSide(
+                  color: Colors.white, // Border color
+                  width: 1.0, // Border width
+                ),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15), // Padding for the button
+            ),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const PaymentSuccessPage(),
+                ),
+              );
+            },
+            child: const Text('Trade is live'),
+          ),
+        ] else ...[
+         if (!_paymentSuccessful)
+          NeoPopTiltedButton(
+  isFloating: true,
+  onTapUp: () {
+    
+   Navigator.push(
+     context,
+      MaterialPageRoute(builder: (context) => ShopPage()),
+    );
+  },
+  decoration: const NeoPopTiltedButtonDecoration(
+   color: Color.fromARGB(255, 253, 236, 209),
+    plunkColor: Color.fromARGB(255, 255, 231, 196),
+    shadowColor: Color.fromRGBO(36, 36, 36, 1),
+    showShimmer: true,
+  ),
+  child: const Padding(
+    padding: EdgeInsets.symmetric(horizontal: 70.0, vertical: 15),
+   child: Text('splitwise'),
+   ),
+),
+        ],
+        if (_errorMessage != null) ...[
+          const SizedBox(height: 20),
+          Text(
+            _errorMessage!,
+            style: const TextStyle(color: Colors.red),
+          ),
+        ],
+      ],
+    );
+  }
+ void _playNextContent() {
+    setState(() {
+      // Update the index to display the next content
+      _currentContentIndex = (_currentContentIndex + 1) % _contentSequence.length;
+    });
 
-    _pageController = PageController();
-    _teamController = PageController();
+    // Use a timer to control the duration each content is displayed
+    Future.delayed(const Duration(seconds: 1), () {
+      // Recursive call to play the next content
+      _playNextContent();
+    });
+  }
+  
+ @override
+void initState() {
+  super.initState();
+  // Start by showing the first image
 
-    _startAnimationSequence();
-    if (!_resultsLive) {
-      _startPageAutoScroll(); // Uncomment this if you have the method
+  // Initialize AnimationController
+   // Initialize the animation controller for fade
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    );
+    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 3));
+
+ 
+// Timer to toggle between Lottie animation and image
+  Timer.periodic(const Duration(milliseconds:2500 ), (timer) {
+    setState(() {
+      _showLottieAnimation = !_showLottieAnimation;
+      if (!_showLottieAnimation) {
+        _currentImageIndex = (_currentImageIndex + 1) % _contentSequence.length; // Loop through the images
+      }
+    });
+  });
+
+  _pageController = PageController();
+  _teamController = PageController();
+  
+
+  // Start the animation sequence
+  _animationController.forward(); 
+
+
+  // Check if results are live and initialize the auto-scroll
+  if (!_resultsLive) {
+    _startPageAutoScroll();
+  }
+
+  // Fetch API data and perform additional setup
+  _fetchApiData();
+  _checkResultsAndFetchLeaderboard();
+  _startContentSequence();
+
+}
+
+@override
+void dispose() {
+  // Properly dispose of all controllers and cancel any active timers
+  _controller.dispose();
+  _pageController.dispose();
+  _teamController.dispose();
+  _animationController.dispose();
+  _timer?.cancel();
+  super.dispose();
+}
+
+
+
+
+ // Start the image sequence
+ 
+
+
+
+void _initializeCountdownTimer(DateTime endTime) {
+  _timer?.cancel(); // Cancel any existing timer
+  const duration = Duration(seconds: 1);
+  
+  _timer = Timer.periodic(duration, (timer) {
+    final now = DateTime.now();
+    final difference = endTime.difference(now);
+    
+    if (difference.isNegative) {
+      _timer?.cancel();
+      setState(() {
+        _countdownText = 'Time\'s up!';
+      });
+    } else {
+      setState(() {
+        _countdownText = _formatDuration(difference);
+      });
     }
-    
+  });
+}
 
-    // Make the API call when the page initializes
-    _fetchApiData();
-    _checkResultsAndFetchLeaderboard();
-    _startPageAutoScroll;
-    
+// Format duration to hours:minutes:seconds
+String _formatDuration(Duration duration) {
+  String twoDigits(int n) => n.toString().padLeft(2, '0');
+  String hours = twoDigits(duration.inHours);
+  String minutes = twoDigits(duration.inMinutes.remainder(60));
+  String seconds = twoDigits(duration.inSeconds.remainder(60));
+  return '$hours:$minutes:$seconds';
+}
 
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    _pageController.dispose();
-    _timer?.cancel();
-    super.dispose();
-    
-    
-  }
-  void _initializeCountdownTimer(DateTime endTime) {
-    _timer?.cancel(); // Cancel any existing timer
-    const duration = Duration(seconds: 1);
-    
-    _timer = Timer.periodic(duration, (timer) {
-      final now = DateTime.now();
-      final difference = endTime.difference(now);
-      
-      if (difference.isNegative) {
-        _timer?.cancel();
-        setState(() {
-          _countdownText = 'Time\'s up!';
-        });
-      } else {
-        setState(() {
-          _countdownText = _formatDuration(difference);
-        });
-      }
-    });
-  }
-
-  String _formatDuration(Duration duration) {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    String hours = twoDigits(duration.inHours);
-    String minutes = twoDigits(duration.inMinutes.remainder(60));
-    String seconds = twoDigits(duration.inSeconds.remainder(60));
-    return '$hours:$minutes:$seconds';
-  }
-
-    void _startCountdown(DateTime endTime) {
-    _timer?.cancel(); // Cancel any existing timer
-    const duration = Duration(seconds: 1);
-    
-    _timer = Timer.periodic(duration, (timer) {
-      final now = DateTime.now();
-      final difference = endTime.difference(now);
-      
-      if (difference.isNegative) {
-        _timer?.cancel();
-        setState(() {
-          _countdownText = 'Time\'s up!';
-        });
-      } else {
-        setState(() {
-          _countdownText = _formatDuration(difference);
-        });
-      }
-    });
-  }
- 
-  // Function to auto-scroll team pages
-  void _startPageAutoScroll() {
+// Auto-scroll functionality for the pages
+void _startPageAutoScroll() {
   if (_resultsLive) {
-    // If results are live, go directly to page 1
-    _pageController.jumpToPage(1); // Jump to page 1 directly
+    // If results are live, jump directly to page 1
+    _pageController.jumpToPage(1);
   } else {
-    
+    // Use a periodic timer to auto-scroll the pages
     _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
       if (_currentPage < 2) {
         setState(() {
@@ -149,111 +313,94 @@ class _FantasyBetsPageState extends State<FantasyBetsPage> with TickerProviderSt
           curve: Curves.easeInOut,
         );
       } else {
-        _timer?.cancel();
+        _timer?.cancel(); // Cancel the timer when the last page is reached
       }
     });
   }
 }
 
-
-  
-  // Check if results are live
-  
-
-
-  // Function to auto-scroll team pages
-  
-   
-  // Function to start the animation sequence
-  void _startAnimationSequence() {
-    _playNextAnimation();
-  }
-
-  // Function to auto-scroll pages
-
-
-
-
-
-  // Function to auto-scroll team pages
-  
-  // Function to play the next animation in sequence
-  void _playNextAnimation() {
-    final animationPath = _animationSequence[_currentAnimationIndex];
-
-    Lottie.asset(
-      animationPath,
-      controller: _controller,
-      onLoaded: (composition) {
-        _controller.duration = composition.duration;
-        _controller.reset();
-        _controller.forward().whenComplete(() {
-          setState(() {
-            _currentAnimationIndex = (_currentAnimationIndex + 1) % _animationSequence.length;
-          });
-          _playNextAnimation();
-        });
-      },
-    );
-  }
-
  Future<void> _fetchApiData() async {
-  const url = 'https://innqn6dwv1.execute-api.ap-south-1.amazonaws.com/prod/User/GetRank';
-  final body = jsonEncode({
-    'institution_short_name': 'XIE',
-    'phone_number': '9583658818',
-    'poll_id': '7e7355d5-fc85-478e-a8f1-9f6f65da7c48'
-  });
-
   try {
+    // Retrieve the required values from SharedPreferences
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? institutionShortName = prefs.getString('institution_short_name');
+    String? phoneNumber = prefs.getString('phone_number');
+    String? pollId = prefs.getString('poll_id');
+
+    // Check if any required value is missing
+    if (institutionShortName == null || phoneNumber == null || pollId == null) {
+      print('Error: Missing required data from SharedPreferences');
+      // Log which values are missing
+      if (institutionShortName == null) print('Missing institution_short_name');
+      if (phoneNumber == null) print('Missing phone_number');
+      if (pollId == null) print('Missing poll_id');
+      return;
+    }
+
+    // Prepare the request body with values from SharedPreferences
+    final body = jsonEncode({
+      'institution_short_name': institutionShortName,
+      'phone_number': phoneNumber,
+      'poll_id': pollId,
+    });
+
+    const url = 'https://innqn6dwv1.execute-api.ap-south-1.amazonaws.com/prod/User/GetRank';
+
+    // Make the API request
     final response = await http.post(
       Uri.parse(url),
       headers: {'Content-Type': 'application/json'},
       body: body,
     );
 
+    print('Response body: ${response.body}'); // Log the response for debugging
+    print('Request body: $body'); // Log the request body for debugging
+
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      
-      
+      final data = jsonDecode(response.body); // Decode the main response body
 
       if (data['body'] != null) {
-        final responseBody = jsonDecode(data['body']);
-      print(widget.selectedOptions);
-        
-        // Check if Results_live key is present
-        if (responseBody.containsKey('results_live')) {
-          bool resultsLive = responseBody['results_live'] ?? false;
+        // The 'body' field contains a string that needs to be decoded again into JSON
+        final responseBody = jsonDecode(data['body']); // Decode 'body' into Map<String, dynamic>
+
+        if (responseBody is Map<String, dynamic>) {
+          // Extract values from responseBody
+          bool resultsLive = responseBody['Results_live'] ?? false;
+          String endTimeString = responseBody['end_time'] ?? '';
+          Map<String, dynamic> balances = responseBody['balances'] ?? {};
+
+          // Check for Active_trades status
+          bool activeTrades = responseBody['Active_trades'] ?? false;
+
+          // Set _paymentSuccessful based on Active_trades
+          bool _paymentSuccessful = activeTrades;
+
+          // Optional: Extract nested balances if needed
           
+
+          // Update the UI using setState and perform further logic
           setState(() {
             _resultsLive = resultsLive;
-            _balances = responseBody['balances'];
+            _balances = balances;
 
-            // Get user_win status
-            _userWin = responseBody['user_win'] ?? false;
-
-            // Get user_rank
-            _userRank = responseBody['rank'] ?? 0; // Default to 0 if not present
-            
-            // Optionally store userWin and userRank in state variables
-            // _userWin = userWin; // Uncomment if you have a variable for userWin
-            // _userRank = userRank; // Uncomment if you have a variable for userRank
-
-            // Get end_time if results are not live
-            if (!resultsLive && responseBody.containsKey('end_time')) {
-              String endTimeString = responseBody['end_time'];
+            // Handle countdown if results are not live
+            if (!resultsLive && endTimeString.isNotEmpty) {
               DateTime endTime = DateTime.parse(endTimeString);
               _initializeCountdownTimer(endTime);
             }
+
+            // Handle page navigation after 5 seconds if results are live
             if (_resultsLive) {
-  // Delay for 4 seconds before jumping to page 1
-  Future.delayed(const Duration(seconds: 5), () {
-    _pageController.jumpToPage(1); // Jump to page 1 directly
-  });
-}
+              Future.delayed(const Duration(seconds: 5), () {
+                _pageController.jumpToPage(1); // Jump to page 1 directly
+              });
+            }
           });
+
+          // Optionally log or handle _paymentSuccessful if needed
+          print('_paymentSuccessful is set to: $_paymentSuccessful');
         } else {
-          print('Error: Results_live key is missing in the response');
+          print('Error: Expected a Map<String, dynamic> for responseBody');
         }
       } else {
         print('Error: Body is null');
@@ -266,37 +413,58 @@ class _FantasyBetsPageState extends State<FantasyBetsPage> with TickerProviderSt
   }
 }
 
-
  // This function will check if results are live and fetch leaderboard data if they are
 Future<void> _checkResultsAndFetchLeaderboard() async {
   try {
+    // Retrieve the required values from SharedPreferences
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? institutionShortName = prefs.getString('institution_short_name');
+    String? phoneNumber = prefs.getString('phone_number');
+    String? pollId = prefs.getString('poll_id');
+
+    // Check if any required value is missing
+    if (institutionShortName == null || phoneNumber == null || pollId == null) {
+      print('Error: Missing required data from SharedPreferences');
+      // Log which values are missing
+      if (institutionShortName == null) print('Missing institution_short_name');
+      if (phoneNumber == null) print('Missing phone_number');
+      if (pollId == null) print('Missing poll_id');
+      return;
+    }
+
+    // Define the payload for the POST request
+    final Map<String, dynamic> payload = {
+      "institution_short_name": institutionShortName,
+      "phone_number": phoneNumber,
+      "poll_id": pollId,
+    };
+
+    // Make the API request
     final response = await http.post(
       Uri.parse('https://innqn6dwv1.execute-api.ap-south-1.amazonaws.com/prod/User/leaderboard'),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: json.encode({
-        "institution_short_name": "XIE",
-        "phone_number": "9583658818",
-        "poll_id": "7e7355d5-fc85-478e-a8f1-9f6f65da7c48",
-      }),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(payload),
     );
 
     if (response.statusCode == 200) {
       // Decode the response body
       final decodedResponse = json.decode(response.body);
-      
-      // Since 'body' is a JSON string, decode it again
+
+      // Decode the response body which is a JSON string
       final leaderboardData = json.decode(decodedResponse['body']);
 
-      // Parse the leaderboard data
-      setState(() {
-        _yourTeamRankingsData = parseLeaderboardData(leaderboardData);
-       
-      });
-      
-      // Print the parsed leaderboard data for debugging
-      
+      // Check if 'leaderboardData' is valid and not a String or null
+      if (leaderboardData != null && leaderboardData is! String) {
+        // Parse the leaderboard data if it's not a String or null
+        setState(() {
+          _yourTeamRankingsData = parseLeaderboardData(leaderboardData);
+        });
+      } else {
+        // Handle the case where data is invalid (either a String or null)
+        setState(() {
+          _yourTeamRankingsData = {}; // or some default/empty data structure
+        });
+      }
     } else {
       print('Error: ${response.statusCode}');
     }
@@ -308,30 +476,37 @@ Future<void> _checkResultsAndFetchLeaderboard() async {
   }
 }
 
-
-
-
-
-
-
-  // Function to handle payment page navigation
-  void _paymentPage(BuildContext context) async {
-
-  // Define the payload for the POST request
-  final Map<String, dynamic> payload = {
-    "institution_short_name": "XIE",
-    "phone_number": "9583658818",
-    "poll_id": "7e7355d5-fc85-478e-a8f1-9f6f65da7c48",
-    "User_Amount": "250"
-  };
-
+ // Function to handle payment page navigation
+void _paymentPage(BuildContext context) async {
   try {
+    // Retrieve the required values from SharedPreferences
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? institutionShortName = prefs.getString('institution_short_name');
+    String? phoneNumber = prefs.getString('phone_number');
+    String? pollId = prefs.getString('poll_id');
+
+    // Check if any required value is missing
+    if (institutionShortName == null || phoneNumber == null || pollId == null) {
+      print('Error: Missing required data from SharedPreferences');
+      // Log which values are missing
+      if (institutionShortName == null) print('Missing institution_short_name');
+      if (phoneNumber == null) print('Missing phone_number');
+      if (pollId == null) print('Missing poll_id');
+      return;
+    }
+
+    // Define the payload for the POST request
+    final Map<String, dynamic> payload = {
+      "institution_short_name": institutionShortName,
+      "phone_number": phoneNumber,
+      "poll_id": pollId,
+      "User_Amount": "250" // You can adjust this value based on your requirement
+    };
+
     // Make the POST request
     final response = await http.post(
       Uri.parse('https://innqn6dwv1.execute-api.ap-south-1.amazonaws.com/prod/User/Payment'),
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: {"Content-Type": "application/json"},
       body: jsonEncode(payload),
     );
 
@@ -364,26 +539,12 @@ Future<void> _checkResultsAndFetchLeaderboard() async {
   }
 }
 
-
-
-
 @override
 Widget build(BuildContext context) {
   return Scaffold(
     appBar: AppBar(
       backgroundColor: const Color.fromARGB(255, 0, 0, 0),
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back, color: Color.fromARGB(255, 255, 255, 255), size: 30),
-        onPressed: () {
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const RootPage(), // Replace with your homepage widget
-            ),
-            (route) => false,
-          );
-        },
-      ),
+      
       title: const Text(
         'Fantasy Zone',
         style: TextStyle(color: Color.fromARGB(255, 135, 135, 135)),
@@ -402,6 +563,7 @@ Widget build(BuildContext context) {
     );
   },
 ),
+
 IconButton(
   iconSize: 30.0,
   icon: const Icon(Icons.account_balance_wallet, color: Colors.white),
@@ -739,120 +901,56 @@ Widget _buildNeoPopPlayButton() {
 
   // Animation box displaying the sequence of animations and NeoPop button
   // Animation box displaying the sequence of animations and conditional button
-Widget _buildAnimationBox() {
-  return Column(
-    mainAxisAlignment: MainAxisAlignment.center, // Center the column
-    children: [
-      SizedBox(
-        height: 225,
-        width: 225,
-        child: Center(
-          child: Lottie.asset(
-            _animationSequence[_currentAnimationIndex],
-            controller: _controller,
-            onLoaded: (composition) {
-              _controller.duration = composition.duration;
-              _controller.reset();
-              _controller.forward().whenComplete(() {
-                setState(() {
-                  _currentAnimationIndex = (_currentAnimationIndex + 1) % _animationSequence.length;
-                });
-                _playNextAnimation();
-              });
-            },
-          ),
-        ),
-      ),
-      const SizedBox(height: 20),
-      
-      if (_resultsLive) ...[
-        // Display 'Results Live' button if results are live
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color.fromARGB(255, 0, 0, 0), // Button background color (black)
-            foregroundColor: const Color.fromARGB(255, 255, 255, 255), // Text color (white)
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(2),
-              side: const BorderSide(
-                color: Colors.white, // Border color
-                width: 1.0, // Border width
-              ),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15), // Padding for the button
-          ),
-          onPressed: () {
-            // Navigate to a dummy results page
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const DummyResultsPage(), // Replace with your results page
-              ),
-            );
-          },
-          child: const Text(
-  'Results Live',
-  style: TextStyle(
-    color: Color.fromARGB(255, 0, 255, 145), // Set the text color to red
-  ),
-),
 
-        ),
-      ] else if (_paymentSuccessful) ...[
-        // Display 'Trade is live' button if payment is successful
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color.fromARGB(255, 0, 0, 0), // Button background color (black)
-            foregroundColor: const Color.fromARGB(255, 29, 255, 153), // Text color (green)
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(2),
-              side: const BorderSide(
-                color: Colors.white, // Border color
-                width: 1.0, // Border width
+
+Widget _build3DText(List<String> paragraphs) {
+  return Column(
+    mainAxisAlignment: MainAxisAlignment.center,
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: paragraphs.map((paragraph) {
+      return Stack(
+        children: [
+          // Shadow behind the main text to create a 3D effect
+          Positioned(
+            top: 2.0,
+            left: 2.0,
+            child: Text(
+              paragraph,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey, // Shadow color
               ),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15), // Padding for the button
           ),
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const PaymentSuccessPage(),
-              ),
-            );
-          },
-          child: const Text('Trade is live'),
-        ),
-      ] else ...[
-        // Display NeoPopTiltedButton if payment is not successful
-        NeoPopTiltedButton(
-          isFloating: true,
-          onTapUp: () {
-            _paymentPage(context); // Correctly passing the context here
-          },
-          decoration: const NeoPopTiltedButtonDecoration(
-            color: Color.fromARGB(255, 253, 236, 209),
-            plunkColor: Color.fromARGB(255, 255, 231, 196),
-            shadowColor: Color.fromRGBO(36, 36, 36, 1),
-            showShimmer: true,
+          // Main text
+          Text(
+            paragraph,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.blueAccent, // Main color of the text
+              shadows: [
+                Shadow(
+                  blurRadius: 4.0,
+                  color: Colors.black38,
+                  offset: Offset(2.0, 2.0), // Position of the shadow
+                ),
+              ],
+            ),
           ),
-          child: const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 70.0, vertical: 15),
-            child: Text('Play - Rs 250'),
-          ),
-        ),
-      ],
-      if (_errorMessage != null) ...[
-        const SizedBox(height: 20),
-        Text(
-          _errorMessage!,
-          style: const TextStyle(color: Colors.red),
-        ),
-      ],
-    ],
+        ],
+      );
+    }).toList(),
   );
 }
 
+
 }
+
+
 
 // Reusable widget for displaying an option with an image and text
 class _OptionBox extends StatelessWidget {

@@ -2,12 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:neopop/neopop.dart';
 
 class WalletTemplatePage extends StatelessWidget {
-  final Map<String, dynamic> balances;  // Change to Map<String, dynamic>
+  final Map<String, dynamic> balances;
 
   const WalletTemplatePage({super.key, required this.balances});
 
   @override
   Widget build(BuildContext context) {
+    // Using null-aware operators and providing default values for safety
+    String totalAmount = balances['Total_balance']?['amount']?.toString() ?? '0.0';
+    String cashBalance = balances['Cash_balance']?['amount']?.toString() ?? '0.0';
+    String rewards = balances['Rewards']?['amount']?.toString() ?? '0.0';
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.black,
@@ -17,7 +22,10 @@ class WalletTemplatePage extends StatelessWidget {
             Navigator.pop(context);
           },
         ),
-        title: const Text('Wallet', style: TextStyle(color: Color.fromARGB(255, 132, 132, 132))),
+        title: const Text(
+          'Wallet',
+          style: TextStyle(color: Color.fromARGB(255, 132, 132, 132)),
+        ),
       ),
       body: Container(
         color: Colors.black,
@@ -26,20 +34,19 @@ class WalletTemplatePage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(height: kToolbarHeight - 20),
-            AmountSection(totalAmount: balances['Total_balance']['amount'].toString()), // Ensure this is a string
+            AmountSection(totalAmount: totalAmount), // Safe value for totalAmount
             const SizedBox(height: 20),
-            BalanceSection(balance: balances['Cash_balance']['amount'].toString()), // Ensure this is a string
+            BalanceSection(balance: cashBalance), // Safe value for cashBalance
             const SizedBox(height: 20),
-            RewardSection(reward: balances['Rewards']['amount'].toString()), // Ensure this is a string
+            RewardSection(reward: rewards), // Safe value for rewards
             const SizedBox(height: 20),
-            TransactionHistorySection(),
+            const TransactionHistorySection(),
           ],
         ),
       ),
     );
   }
 }
-
 
 
 
@@ -116,7 +123,7 @@ class BalanceSection extends StatelessWidget {
                     ),
                     SizedBox(width: 10),
                     Text(
-                      'Balance',
+                      'Credit',
                       style: TextStyle(fontSize: 16, color: Color.fromARGB(255, 255, 255, 255)),
                     ),
                   ],
@@ -156,7 +163,7 @@ class BalanceSection extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    'Cash out',
+                    'Add more',
                     style: TextStyle(
                       fontSize: 15,
                       color: Color.fromARGB(255, 47, 236, 164),
@@ -293,7 +300,7 @@ class TransactionHistorySection extends StatelessWidget {
               ),
               SizedBox(width: 10),
               Text(
-                'See transaction history',
+                'See order history',
                 style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.w700),
               ),
             ],

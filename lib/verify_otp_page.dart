@@ -18,7 +18,8 @@ import 'package:provider/provider.dart'; // If using Provider for state manageme
 
 class VerifyOtpPage extends StatefulWidget {
   final String phoneNumber;
-   const VerifyOtpPage({super.key, required this.phoneNumber});
+  final String email;
+   const VerifyOtpPage({super.key, required this.phoneNumber, required this.email});
 
   @override
   _VerifyOtpPageState createState() => _VerifyOtpPageState();
@@ -90,13 +91,18 @@ void verifyOtp(String phoneNumber, String otp, BuildContext context) async {
       if (responseData.containsKey('statusCode') && responseData['statusCode'] == 200) {
         // Decode the body field
         Map<String, dynamic> bodyData = json.decode(responseData['body']);
-         // Debugging decoded body
+        // Debugging decoded body
 
         // Extract the jwtToken and action from the body
         String jwtToken = bodyData['jwtToken'];
         GlobalData().setJwtToken(jwtToken);
         GlobalData().setPhoneNumber(phoneNumber);
         print('Decoded Body: $jwtToken');
+
+        // Save 'isAuthenticated' to SharedPreferences
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('isAuthenticated', true);  // Save authentication status
+
         // Check for 'complete_signup' action
         if (bodyData['action'] == 'complete_signup') {
           List<Map<String, dynamic>> institutionData = bodyData.containsKey('institutions') && bodyData['institutions'] != null
@@ -188,7 +194,7 @@ void verifyOtp(String phoneNumber, String otp, BuildContext context) async {
             ),
             const SizedBox(height: 10),
             Text(
-              'Sent to ${widget.phoneNumber}',
+              'Sent to ${widget.email}',
               style: TextStyle(
                 color: Colors.grey, // Grey text
                 fontSize: 14, // Smaller font size

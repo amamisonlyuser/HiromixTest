@@ -51,6 +51,8 @@ dependencies:
   sendotp_flutter_sdk: ^0.0.1
   geolocator: ^9.0.0
   geocoding: ^2.0.0
+  flutter_bloc: ^8.1.4
+  equatable: ^2.0.5
 
 
 dev_dependencies:
@@ -147,6 +149,37 @@ flutter:
   - assets/female.svg
   - assets/other.svg
   - assets/college_logo.png
+  - assets/1stwinners.png
+  - assets/2ndwinners.png
+  - assets/3rdwinners.png
+  - assets/fire.json
+  - assets/banner1.png
+  - assets/banner2.png
+  - assets/banner3.png
+  - assets/banner4.png
+  - assets/banner5.png
+  - assets/menbanner1.png
+  - assets/menbanner2.png
+  - assets/menbanner3.png
+  - assets/menbanner4.png
+  - assets/womenbanner1.png
+  - assets/womenbanner2.png
+  - assets/womenbanner3.png
+  - assets/womenbanner4.png
+  - assets/womenitem1.png
+  - assets/womenitem2.png
+  - assets/womenitem3.png
+  - assets/womenitem4.png
+  - assets/womenitem5.png
+  - assets/womenitem6.png
+  - assets/menitem1.png
+  - assets/menitem2.png
+  - assets/menitem3.png
+  - assets/menitem4.png
+  - assets/menitem5.png
+  - assets/menitem6.png
+
+  
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware
 
