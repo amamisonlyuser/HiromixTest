@@ -13,7 +13,6 @@ void main() {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => GlobalData()),
-        // Add other providers as needed
       ],
       child: MyApp(),
     ),
@@ -34,7 +33,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         textTheme: const TextTheme().apply(fontFamily: 'InriaSerif'),
       ),
-      home: const RootPage(), // Use RootPage to check auth status
+      home: const RootPage(),
     );
   }
 }
@@ -91,23 +90,35 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _selectedIndex = 1; // Set PollsPage as the initial index
+  int _selectedIndex = 1; // Default to PollsPage
   late String phoneNumber;
   Map<String, dynamic> balances = {
-    'totalBalance': {'amount': 0.0}, // Default value for initialization
+    'totalBalance': {'amount': 0.0},
   };
 
   @override
   void initState() {
     super.initState();
     phoneNumber = widget.phoneNumber;
+    _loadLastVisitedPage();  // Load the last visited page when the app starts
+  }
+
+  Future<void> _loadLastVisitedPage() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _selectedIndex = prefs.getInt('lastVisitedPage') ?? 1; // Default to PollsPage if nothing is saved
+    });
+  }
+
+  Future<void> _saveLastVisitedPage(int index) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('lastVisitedPage', index);
   }
 
   void _loadBalances() {
-    // Fetch balances from a service or database if needed
     setState(() {
       balances = {
-        'totalBalance': {'amount': 100.0}, // Replace with actual fetch logic
+        'totalBalance': {'amount': 100.0},
       };
     });
   }
@@ -118,24 +129,15 @@ class _MyHomePageState extends State<MyHomePage> {
     Icons.home,
     Icons.folder,
     Icons.wallet,
-    Icons.attach_money // Icon for Fantasy Bets Page
+    Icons.attach_money,
   ];
-
-
-
-
 
   @override
   Widget build(BuildContext context) {
-
     final List<Widget> pages = <Widget>[
       ProfileTemplatePage(balances: balances),
-      PollsPage(
-        phoneNumber: phoneNumber,
-        institution_short_name:"XIE", 
-      ),
+      PollsPage(phoneNumber: phoneNumber, institution_short_name: "XIE"),
       WalletTemplatePage(balances: balances),
-      
     ];
 
     return CustomScaffold(
@@ -149,11 +151,13 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       _selectedIndex = index;
     });
+    _saveLastVisitedPage(index);  // Save the selected index when the user navigates
   }
 
   void _logout() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isAuthenticated', false);
+    await prefs.remove('lastVisitedPage'); // Clear saved page on logout
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => const RootPage()),

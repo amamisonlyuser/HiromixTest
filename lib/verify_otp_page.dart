@@ -99,9 +99,11 @@ void verifyOtp(String phoneNumber, String otp, BuildContext context) async {
         GlobalData().setPhoneNumber(phoneNumber);
         print('Decoded Body: $jwtToken');
 
-        // Save 'isAuthenticated' to SharedPreferences
+        // Save 'isAuthenticated', 'phoneNumber' and 'jwtToken' to SharedPreferences
         SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setBool('isAuthenticated', true);  // Save authentication status
+        await prefs.setString('phoneNumber', phoneNumber);  // Save the phone number
+        await prefs.setString('jwtToken', jwtToken);  // Save the JWT token
 
         // Check for 'complete_signup' action
         if (bodyData['action'] == 'complete_signup') {
@@ -137,6 +139,12 @@ void verifyOtp(String phoneNumber, String otp, BuildContext context) async {
         }
       } else {
         print('Response Error: $responseData');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            duration: Duration(seconds: 5),
+            content: Text('Authentication failed. Please try again later.'),
+          ),
+        );
       }
     } else if (response.statusCode == 400) {
       // Display error if OTP is invalid
