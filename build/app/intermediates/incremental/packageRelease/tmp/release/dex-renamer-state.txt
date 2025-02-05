@@ -1,0 +1,4 @@
+#Mon Nov 25 19:15:11 IST 2024
+base.0=D\:\\Collegefantasy_flutter-main - Fashion\\build\\app\\intermediates\\dex\\release\\minifyReleaseWithR8\\classes.dex
+path.0=classes.dex
+renamed.0=classes.dex
