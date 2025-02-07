@@ -54,7 +54,7 @@ dependencies:
   flutter_bloc: ^8.1.4
   equatable: ^2.0.5
   go_router: ^13.0.0
-
+  url_launcher: ^6.2.5
 
 dev_dependencies:
   flutter_test:
@@ -107,6 +107,8 @@ flutter:
   - assets/girl20.png
   - assets/tick_tock_sound.mp3
   - assets/boy1.png
+  - assets/HiromixAI.png
+
   - assets/boy2.png
   - assets/boy3.png
   - assets/boy4.png  
@@ -180,6 +182,18 @@ flutter:
   - assets/menitem4.png
   - assets/menitem5.png
   - assets/menitem6.png
+  - assets/bg1.png
+  - assets/bg2.png
+  - assets/bg3.png
+  - assets/bg4.png
+  - assets/bg5.png
+  - assets/bg6.png
+  - assets/bg7.png
+  - assets/bg8.png
+  - assets/bg9.png
+  - assets/bg10.png
+  - assets/Welcome.png
+  - assets/Phone.png
 
   
   # An image asset can refer to one or more resolution-specific "variants", see

@@ -14,12 +14,12 @@ import 'dart:async';
 
 
 class VerifyOtpPage extends StatefulWidget {
-  final String phoneNumber;
+  final String phone_number;
   final String? otp; // Optional OTP parameter for autofill
 
   const VerifyOtpPage({
     super.key,
-    required this.phoneNumber,
+    required this.phone_number,
     this.otp, // Make OTP optional
   });
 
@@ -45,7 +45,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
       _autofillOtp(widget.otp!);
       // Optionally trigger auto-verification after autofill
       Future.delayed(const Duration(milliseconds: 500), () {
-        verifyOtp(widget.phoneNumber, widget.otp!, context);
+        verifyOtp(widget.phone_number, widget.otp!, context);
       });
     }
   }
@@ -86,7 +86,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
     });
   }
 
-  void verifyOtp(String phoneNumber, String otp, BuildContext context) async {
+  void verifyOtp(String phone_number, String otp, BuildContext context) async {
     try {
       final response = await http.post(
         Uri.parse('https://innqn6dwv1.execute-api.ap-south-1.amazonaws.com/prod/User/Auth'),
@@ -94,7 +94,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
           'Content-Type': 'application/json; charset=UTF-8',
         },
         body: jsonEncode(<String, String>{
-          "phone_number": phoneNumber,
+          "phone_number": phone_number,
           "otp": otp,
         }),
       );
@@ -105,24 +105,23 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
         if (responseData['statusCode'] == 200) {
           Map<String, dynamic> bodyData = json.decode(responseData['body']);
           String jwtToken = bodyData['jwtToken'];
+          String institution_short_name = bodyData['institution_short_name'];
 
           SharedPreferences prefs = await SharedPreferences.getInstance();
           await prefs.setBool('isAuthenticated', true);
-          await prefs.setString('phoneNumber', phoneNumber);
+          await prefs.setString('phone_number', phone_number);
           await prefs.setString('jwtToken', jwtToken);
+          await prefs.setString('institution_short_name', institution_short_name);
+
 
           if (bodyData['action'] == 'complete_signup') {
-            List<Map<String, dynamic>> institutionData = bodyData['institutions'] != null
-                ? List<Map<String, dynamic>>.from(bodyData['institutions'])
-                : [];
 
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
                 builder: (context) => SignUpPage(
-                  phoneNumber: phoneNumber,
+                  phone_number: phone_number,
                   jwtToken: jwtToken,
-                  institutions: institutionData,
                 ),
               ),
             );
@@ -130,7 +129,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) => MyHomePage(phoneNumber: phoneNumber),
+                builder: (context) => HomePage(phone_number:phone_number),
               ),
             );
           }
@@ -216,7 +215,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
                 String otp = _otpControllers.map((controller) => controller.text).join();
                 
                 // Call the verifyOtp function
-                verifyOtp(widget.phoneNumber, otp, context);
+                verifyOtp(widget.phone_number, otp, context);
               },
               child: const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 40.0, vertical: 12),
@@ -245,3 +244,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
     );
   }
 }
+
+
+
+

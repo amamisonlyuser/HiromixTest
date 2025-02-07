@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:rizz/main.dart';
 import 'dart:convert';
-import 'PollsPage.dart';
 import 'package:neopop/neopop.dart' as neopop;
 import 'package:flutter/cupertino.dart';
 import 'package:geolocator/geolocator.dart';
@@ -13,15 +13,15 @@ import 'package:shared_preferences/shared_preferences.dart'; // Import SharedPre
  // Import the GlobalData class
 
 class SignUpPage extends StatefulWidget {
-  final String phoneNumber;
+  final String phone_number;
   final String jwtToken;
-  final List<dynamic> institutions; // Accept institutions data
+  // Accept institutions data
 
   const SignUpPage({
     super.key,
-    required this.phoneNumber,
+    required this.phone_number,
     required this.jwtToken,
-    required this.institutions,
+   
   });
 
   @override
@@ -32,8 +32,6 @@ class _SignUpPageState extends State<SignUpPage> {
 
   String? _firstName;
   String? _lastName;
-  String? _selectedInstitution;
-  String _institutionShortName = ''; // Default to an empty string if it should not be null
   int? _age;
   String? _gender;
   String? _state;
@@ -63,18 +61,7 @@ class _SignUpPageState extends State<SignUpPage> {
         controller: _pageController,
         physics: const NeverScrollableScrollPhysics(),
         children: [
-          InstitutionPage(
-            onNext: (selectedInstitution, shortName, state, city) {
-              setState(() {
-                _selectedInstitution = selectedInstitution;
-                _institutionShortName = shortName;
-                _state = state;
-                _city = city;
-              });
-              _nextPage();
-            },
-            institutions: widget.institutions,
-          ),
+        
           GenderPage(onNext: (value) {
             setState(() => _gender = value);
             _nextPage();
@@ -93,9 +80,7 @@ class _SignUpPageState extends State<SignUpPage> {
           }),
           // Pass data to SummaryPage
           SummaryPage(data: {
-            'phone_number': widget.phoneNumber,
-            'institution_short_name': _institutionShortName,
-            'institution_name': _selectedInstitution,
+            'phone_number': widget.phone_number,
             'first_name': _firstName,
             'last_name': _lastName,
             'age': _age?.toString(),
@@ -103,7 +88,8 @@ class _SignUpPageState extends State<SignUpPage> {
             'state': _state,
             'city': _city,
             'jwt_token': widget.jwtToken,
-          }),
+            
+          },phone_number:widget.phone_number),
         ],
       ),
     );
@@ -114,8 +100,9 @@ class _SignUpPageState extends State<SignUpPage> {
 
 class SummaryPage extends StatelessWidget {
   final Map<String, String?> data;
+  final String phone_number;
 
-  const SummaryPage({super.key, required this.data});
+  const SummaryPage({super.key, required this.data, required this.phone_number});
 
   // Function to send POST request for signup
   Future<void> _sendSignupRequest(BuildContext context) async {
@@ -124,8 +111,6 @@ class SummaryPage extends StatelessWidget {
     // Request body without the "body" wrapper
     final requestBody = {
       'phone_number': data['phone_number'] ?? '',
-      'institution_short_name': data['institution_short_name'] ?? '',
-      'institution_name': data['institution_name'] ?? '',
       'first_name': data['first_name'] ?? '',
       'last_name': data['last_name'] ?? '',
       'age': int.tryParse(data['age'] ?? '0') ?? 0,
@@ -163,18 +148,17 @@ class SummaryPage extends StatelessWidget {
           }
 
           // Additional flag for authentication
-          await prefs.setBool('isAuthenticated', true);  // Set user as authenticated
+          await prefs.setBool('isAuthenticated', true); 
+          
+           // Set user as authenticated
 
           // Navigate to PollsPage after successful signup
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => PollsPage(
-                phoneNumber: data['phone_number'] ?? '',
-                institution_short_name: data['institution_short_name'] ?? '',
+           Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => HomePage(phone_number: phone_number),
               ),
-            ),
-          );
+            ); 
         } catch (e) {
           print('Response is not in JSON format: ${response.body}');
         }
@@ -377,230 +361,6 @@ class LastNamePage extends StatelessWidget {
 
 
 
-
-class InstitutionPage extends StatefulWidget {
-  final List<dynamic> institutions;
-  final Function(String, String, String, String) onNext;
-
-  const InstitutionPage({super.key, required this.institutions, required this.onNext});
-
-  @override
-  _InstitutionPageState createState() => _InstitutionPageState();
-}
-
-class _InstitutionPageState extends State<InstitutionPage> {
-  String? selectedInstitution;
-  List<dynamic> filteredInstitutions = [];
-  String searchQuery = '';
-
-  String? state;
-  String? city;
-
-  @override
-  void initState() {
-    super.initState();
-    // Simulated current location retrieval for the sake of example
-    filteredInstitutions = List.from(widget.institutions)
-      ..sort((a, b) => (a['institution_name'] ?? '').compareTo(b['institution_name'] ?? ''));
-    
-    _getCurrentLocation(); // Get the current location when the page loads
-  }
-
-  // Function to get the current location and update state and city
-  Future<void> _getCurrentLocation() async {
-    bool serviceEnabled;
-    LocationPermission permission;
-
-    // Check if location services are enabled
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      // Location services are not enabled, request to enable them
-      await Geolocator.openLocationSettings();
-      return;
-    }
-
-    // Check and request location permission
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission != LocationPermission.whileInUse && permission != LocationPermission.always) {
-        return;
-      }
-    }
-
-    // Get current position
-    Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-
-    // Use geocoding to get the address from the coordinates
-    List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
-    Placemark placemark = placemarks[0];
-
-    setState(() {
-      state = placemark.administrativeArea; // State
-      city = placemark.locality; // City
-    });
-  }
-
-  void _filterInstitutions(String query) {
-    final filtered = widget.institutions.where((institution) {
-      final name = institution['institution_name']?.toLowerCase() ?? '';
-      return name.contains(query.toLowerCase());
-    }).toList();
-
-    filtered.sort((a, b) => (a['institution_name'] ?? '').compareTo(b['institution_name'] ?? ''));
-
-    setState(() {
-      searchQuery = query;
-      filteredInstitutions = filtered;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    String shortName = selectedInstitution != null
-        ? (widget.institutions.firstWhere(
-              (inst) => inst['institution_name'] == selectedInstitution,
-              orElse: () => {'SK': 'Institution#DefaultShortName'},
-            )['SK']?.split('#').last ?? 'DefaultShortName')
-        : 'SampleShortName';
-
-    return Container(
-      color: Colors.black,
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          const SizedBox(height: 20),
-          TextField(
-            decoration: const InputDecoration(
-              labelText: 'Search for an institution',
-              labelStyle: TextStyle(color: Colors.white54),
-              filled: true,
-              fillColor: Colors.grey,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(8.0)),
-                borderSide: BorderSide(color: Colors.grey),
-              ),
-            ),
-            style: const TextStyle(color: Colors.white),
-            onChanged: _filterInstitutions,
-          ),
-          const SizedBox(height: 10),
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: const Color.fromARGB(255, 0, 0, 0),
-                borderRadius: BorderRadius.circular(0),
-              ),
-              child: ListView.builder(
-                itemCount: filteredInstitutions.length,
-                itemBuilder: (context, index) {
-                  final institution = filteredInstitutions[index];
-                  final institutionName = institution['institution_name'] ?? 'Unknown Institution';
-                  final isSelected = selectedInstitution == institutionName;
-
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        selectedInstitution = institutionName;
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
-                      decoration: BoxDecoration(
-                        color: isSelected ? const Color.fromARGB(255, 0, 0, 0) : const Color.fromARGB(255, 0, 0, 0),
-                        borderRadius: BorderRadius.circular(10.0),
-                        border: isSelected
-                            ? Border.all(color: Colors.white, width: 2.0)
-                            : Border.all(color: Colors.transparent),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              institutionName,
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          CircleAvatar(
-                            backgroundColor: Colors.white,
-                            backgroundImage: AssetImage('assets/college_logo.png'), // Example logo path
-                            radius: 16,
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            height: 80,
-            child: neopop.NeoPopTiltedButton(
-              isFloating: true,
-              decoration: const neopop.NeoPopTiltedButtonDecoration(
-                color: Colors.white,
-                plunkColor: Color.fromARGB(255, 212, 212, 212),
-                shadowColor: Color.fromARGB(255, 54, 54, 54),
-              ),
-              onTapUp: () {
-                // Ensure that selectedInstitution, state, and city are not null
-                if (selectedInstitution != null) {
-                  widget.onNext(
-                    selectedInstitution!, 
-                    shortName, 
-                    state ?? 'DefaultState', // Use default values if null
-                    city ?? 'DefaultCity',   // Use default values if null
-                  );
-                } else {
-                  // You can show a dialog or feedback to the user that they need to select an institution
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please select an institution')),
-                  );
-                }
-              },
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 70.0, vertical: 20),
-                child: Text(
-                  'Next',
-                  style: TextStyle(
-                    color: Color.fromARGB(255, 0, 0, 0),
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          // "Skip" button
-          TextButton(
-            style: TextButton.styleFrom(
-              backgroundColor: const Color.fromARGB(255, 255, 255, 42), // Yellow background color
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8), // Rounded corners
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 40.0, vertical: 12), // Reduced padding
-            ),
-            onPressed: () {
-              widget.onNext('None', 'None', state ?? '', city ?? '');
-            },
-            child: const Text(
-              'Skip',
-              style: TextStyle(
-                color: Color.fromARGB(255, 0, 0, 0),
-                fontSize: 16, // Reduced font size
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 
 

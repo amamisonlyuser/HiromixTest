@@ -8,16 +8,16 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'AnimationPage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+
 
 
 class PollsPage extends StatefulWidget {
-  final String phoneNumber;
+  final String phone_number;
   final String institution_short_name;
 
   const PollsPage({
     super.key,
-    required this.phoneNumber,
+    required this.phone_number,
      required this.institution_short_name,
     
   });
@@ -32,7 +32,8 @@ class _PollsPageState extends State<PollsPage> {
   late AudioPlayer audioPlayer; // Track the currently selected option ID
   late PageController _pageController;
   late ScrollController _scrollController;
-  bool optionScrolled = false; // Scroll controller
+  bool optionScrolled = false;
+  bool UseHiromixAi = false; // Scroll controller
 
   // Variable to store poll data
   List<dynamic> pollData = [];
@@ -62,84 +63,102 @@ class _PollsPageState extends State<PollsPage> {
 
 Future<void> _fetchPollData() async {
   final apiUrl = 'https://innqn6dwv1.execute-api.ap-south-1.amazonaws.com/prod/User/GetPoll';
-  
+
   // Retrieve data from widget properties
   String? institutionShortName = widget.institution_short_name;
-  String? phoneNumber = widget.phoneNumber;
-  
+  String? phone_number = widget.phone_number;
+
   // Log the data being passed to the API
-  print("Sending data to API: ");
+  print("Sending data to API:");
   print("Institution Short Name: $institutionShortName");
-  print("Phone Number: $phoneNumber");
+  print("Phone Number: $phone_number");
 
   // Define the JSON body to send to the API
   final data = {
     "institution_short_name": institutionShortName,
-    "phone_number": phoneNumber,
+    "phone_number": phone_number,
   };
-  
+
   // Log the complete JSON body
   print("Request body: ${json.encode(data)}");
 
   try {
-  // Make the POST request to the API
-  final response = await http.post(
-    Uri.parse(apiUrl),
-    headers: {'Content-Type': 'application/json'},
-    body: json.encode(data),
-  );
+    // Make the POST request to the API
+    final response = await http.post(
+      Uri.parse(apiUrl),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(data),
+    );
 
-  // Log the response from the server
-  print("Response Status: ${response.statusCode}");
-  print("Response Body: ${response.body}");
+    // Log the response from the server
+    print("Response Status: ${response.statusCode}");
+    print("Response Body: ${response.body}");
 
-  // Check if the request was successful
-  if (response.statusCode == 200) {
-    // Decode the response
-    final decodedResponse = json.decode(response.body);
+    // Check if the request was successful
+    if (response.statusCode == 200) {
+      final decodedResponse = json.decode(response.body);
 
-    // Check if 'polls' key exists and is a list
-    if (decodedResponse is Map && decodedResponse.containsKey('polls')) {
-      final pollsList = decodedResponse['polls'];
+      // Check if 'polls' key exists and is a list
+      if (decodedResponse is Map && decodedResponse.containsKey('polls')) {
+        final pollsList = decodedResponse['polls'];
 
-      // Check if 'polls' is a list and is not empty
-      if (pollsList is List && pollsList.isNotEmpty) {
-        // Retrieve the poll_id from the first item in the 'polls' list
-        String? pollId = pollsList[0]['poll_id'];
-        print("Extracted Poll ID: $pollId");
+        // Check if 'polls' is a list and is not empty
+        if (pollsList is List && pollsList.isNotEmpty) {
+          // Retrieve the poll_id from the first item in the 'polls' list
+          String? pollId = pollsList[0]['poll_id'];
+          print("Extracted Poll ID: $pollId");
 
-        // Update pollData with fetched polls
-        setState(() {
-          pollData = pollsList; 
-        });
+          // Update pollData with fetched polls
+          setState(() {
+            pollData = pollsList;
+          });
 
-        if (pollId != null) {
-          // Save poll_id to SharedPreferences
-          SharedPreferences prefs = await SharedPreferences.getInstance();
-          await prefs.setString('poll_id', pollId);
-          print("Poll ID saved to SharedPreferences: $pollId");
+
+          // Log the updated poll data
+          print("Poll Data: $pollData");
         } else {
-          print("Poll ID not found in response.");
+          print("No polls available.");
+          setState(() {
+            UseHiromixAi = true;
+          });
         }
-
-        // Log the updated poll data
-        print("Poll Data: $pollData");
       } else {
-        print("Error: 'polls' is not a list or is empty.");
+        print("Error: Response does not contain 'polls' key or is not a valid object.");
+        setState(() {
+            UseHiromixAi = true;
+          });
+      }
+    } else if (response.statusCode == 400) {
+      print("Error: ${response.statusCode}, Response: ${response.body}");
+
+      // Check if the response body contains a specific error message
+      final decodedResponse = json.decode(response.body);
+      setState(() {
+            UseHiromixAi = true;
+          });
+      if (decodedResponse is Map && decodedResponse['error'] == "No polls found for this institution") {
+        print("No polls found for this institution.");
+        setState(() {
+            UseHiromixAi = true;
+          });
       }
     } else {
-      print("Error: Response does not contain 'polls' key or is not a valid object.");
+      // Log other error statuses
+      print('Error: ${response.statusCode}, Response: ${response.body}');
+      setState(() {
+            UseHiromixAi = true;
+          });
     }
-  } else {
-    // Log error if status code is not 200
-    print('Error: ${response.statusCode}, Response: ${response.body}');
+  } catch (e) {
+    // Log any errors encountered during the request
+    print('Error: $e');
+    setState(() {
+            UseHiromixAi = true;
+          });
   }
-} catch (e) {
-  // Log any errors encountered during the request
-  print('Error: $e');
 }
 
-}
+
 
 
   void _onOptionSelected(dynamic option) {
