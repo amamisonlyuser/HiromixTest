@@ -37,7 +37,31 @@
     const serviceWorkerVersion = "2147499775";
   </script>
   <!-- This script adds the flutter initialization JS code -->
-  <script src="flutter.js" defer></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', async function () {
+            try {
+                const response = await fetch('/version.txt?v=' + new Date().getTime());
+                const newVersion = await response.text();
+                const savedVersion = localStorage.getItem('flutter_build_version');
+
+                if (savedVersion && savedVersion !== newVersion) {
+                    console.log("New version detected! Clearing cache...");
+                    caches.delete('flutter-app-manifest');
+                    caches.delete('flutter-temp-cache');
+                    caches.delete('flutter-app-cache');
+                    localStorage.setItem('flutter_build_version', newVersion);
+                    location.reload(); // Reload page to fetch latest version
+                } else {
+                    localStorage.setItem('flutter_build_version', newVersion);
+                }
+            } catch (error) {
+                console.error("Error fetching version.txt", error);
+            }
+            navigator.serviceWorker.register('flutter_service_worker.js?v=3560890553');
+        });
+    }
+</script>
 </head>
 <body>
   <script>

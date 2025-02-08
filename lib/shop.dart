@@ -4,6 +4,8 @@ import 'dart:async';
 
 
 class ShopPage extends StatefulWidget {
+  const ShopPage({super.key});
+
   @override
   _ShopPageState createState() => _ShopPageState();
 }
@@ -143,6 +145,8 @@ Widget _buildImageBanner(List<String> images) {
 }
 
 class MenCategoryWidget extends StatefulWidget {
+  const MenCategoryWidget({super.key});
+
   @override
   _MenCategoryWidgetState createState() => _MenCategoryWidgetState();
 }
@@ -222,7 +226,7 @@ class _MenCategoryWidgetState extends State<MenCategoryWidget> {
         SizedBox(height: 30),
 
         // Fade effect for banner images
-        Container(
+        SizedBox(
           height: 400,
           width: 320, // Adjust the height of the banner as needed
           child: AnimatedSwitcher(
@@ -315,6 +319,8 @@ Widget _buildmenProductCard(Map<String, String> menCategories) {
 }
 
 class WomenCategoryWidget extends StatefulWidget {
+  const WomenCategoryWidget({super.key});
+
   @override
   _WomenCategoryWidgetState createState() => _WomenCategoryWidgetState();
 }
@@ -388,7 +394,7 @@ class _WomenCategoryWidgetState extends State<WomenCategoryWidget> {
         SizedBox(height: 30),
 
         // Fade effect for banner images
-        Container(
+        SizedBox(
           height: 400,
           width: 320, // Adjust the height of the banner as needed
           child: AnimatedSwitcher(

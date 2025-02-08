@@ -66,17 +66,17 @@ Future<void> _fetchPollData() async {
 
   // Retrieve data from widget properties
   String? institutionShortName = widget.institution_short_name;
-  String? phone_number = widget.phone_number;
+  String? phoneNumber = widget.phone_number;
 
   // Log the data being passed to the API
   print("Sending data to API:");
   print("Institution Short Name: $institutionShortName");
-  print("Phone Number: $phone_number");
+  print("Phone Number: $phoneNumber");
 
   // Define the JSON body to send to the API
   final data = {
     "institution_short_name": institutionShortName,
-    "phone_number": phone_number,
+    "phone_number": phoneNumber,
   };
 
   // Log the complete JSON body
@@ -458,7 +458,7 @@ itemBuilder: (context, index) {
                         child: isSelected
                             ? const Icon(
                                 Icons.check_circle,
-                                color: const Color.fromARGB(255, 14, 255, 187),
+                                color: Color.fromARGB(255, 14, 255, 187),
                                 size: 40,
                               )
                             : null,

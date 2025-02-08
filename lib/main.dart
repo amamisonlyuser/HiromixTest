@@ -12,9 +12,9 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
   final bool isAuthenticated = prefs.getBool('isAuthenticated') ?? false;
-  final String phone_number = prefs.getString('phone_number') ?? "";
+  final String phoneNumber = prefs.getString('phone_number') ?? "";
   
-  runApp(MyApp(isAuthenticated: isAuthenticated, phone_number: phone_number));
+  runApp(MyApp(isAuthenticated: isAuthenticated, phone_number: phoneNumber));
 }
 
 class MyApp extends StatelessWidget {

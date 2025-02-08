@@ -30,7 +30,7 @@ class VerifyOtpPage extends StatefulWidget {
 class _VerifyOtpPageState extends State<VerifyOtpPage> {
   final List<TextEditingController> _otpControllers = List.generate(6, (index) => TextEditingController());
   final List<FocusNode> _focusNodes = List.generate(6, (index) => FocusNode());
-  bool _invalidOtp = false;
+  final bool _invalidOtp = false;
   bool _isResendEnabled = false;
   int _remainingSeconds = 30;
   late Timer _timer;
@@ -86,7 +86,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
     });
   }
 
-  void verifyOtp(String phone_number, String otp, BuildContext context) async {
+  void verifyOtp(String phoneNumber, String otp, BuildContext context) async {
     try {
       final response = await http.post(
         Uri.parse('https://innqn6dwv1.execute-api.ap-south-1.amazonaws.com/prod/User/Auth'),
@@ -94,7 +94,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
           'Content-Type': 'application/json; charset=UTF-8',
         },
         body: jsonEncode(<String, String>{
-          "phone_number": phone_number,
+          "phone_number": phoneNumber,
           "otp": otp,
         }),
       );
@@ -105,13 +105,13 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
         if (responseData['statusCode'] == 200) {
           Map<String, dynamic> bodyData = json.decode(responseData['body']);
           String jwtToken = bodyData['jwtToken'];
-          String institution_short_name = bodyData['institution_short_name'];
+          String institutionShortName = bodyData['institution_short_name'];
 
           SharedPreferences prefs = await SharedPreferences.getInstance();
           await prefs.setBool('isAuthenticated', true);
-          await prefs.setString('phone_number', phone_number);
+          await prefs.setString('phone_number', phoneNumber);
           await prefs.setString('jwtToken', jwtToken);
-          await prefs.setString('institution_short_name', institution_short_name);
+          await prefs.setString('institution_short_name', institutionShortName);
 
 
           if (bodyData['action'] == 'complete_signup') {
@@ -120,7 +120,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
               context,
               MaterialPageRoute(
                 builder: (context) => SignUpPage(
-                  phone_number: phone_number,
+                  phone_number: phoneNumber,
                   jwtToken: jwtToken,
                 ),
               ),
@@ -129,7 +129,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) => HomePage(phone_number:phone_number),
+                builder: (context) => HomePage(phone_number:phoneNumber),
               ),
             );
           }

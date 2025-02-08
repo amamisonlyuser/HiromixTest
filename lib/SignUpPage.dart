@@ -182,7 +182,7 @@ class SummaryPage extends StatelessWidget {
         children: [
           ...data.entries.map((entry) {
             return Text('${entry.key}: ${entry.value ?? ''}');
-          }).toList(),
+          }),
           const SizedBox(height: 30),
           Center(
             child: ElevatedButton(

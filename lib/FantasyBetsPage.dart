@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:neopop/neopop.dart'; // Ensure to import NeoPop package
 import 'LeaderboardPage.dart';
-import 'main.dart'; 
 import 'WalletTemplatePage.dart'; 
 import 'ProfileTemplatePage.dart'; 
 import 'PaymentSuccessPage.dart'; 
