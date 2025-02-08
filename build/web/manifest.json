@@ -1,8 +1,8 @@
 {
-    "name": "Hiromix",
-    "short_name": "Hiromix",
+    "name": "flutter_application_1",
+    "short_name": "flutter_application_1",
     "start_url": ".",
-    "display": "browser",
+    "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
     "description": "A new Flutter project.",
