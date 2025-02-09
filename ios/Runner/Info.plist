@@ -25,6 +25,10 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
+	<key>NSPhotoLibraryUsageDescription</key>
+    <string>We need access to save images to your gallery.</string>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>We need access to save images to your gallery.</string>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>

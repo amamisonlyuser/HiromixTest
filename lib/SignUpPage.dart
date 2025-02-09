@@ -4,8 +4,6 @@ import 'package:rizz/main.dart';
 import 'dart:convert';
 import 'package:neopop/neopop.dart' as neopop;
 import 'package:flutter/cupertino.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // Import SharedPreferences
 

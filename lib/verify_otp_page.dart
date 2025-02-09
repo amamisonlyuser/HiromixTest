@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'main.dart';
 import 'package:neopop/neopop.dart';
 import 'SignUpPage.dart';
-import 'package:flutter/animation.dart';
 import 'dart:async';
 
 
