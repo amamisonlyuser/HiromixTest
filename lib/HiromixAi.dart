@@ -8,11 +8,12 @@ import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:html' as html; // For web
 import 'dart:io' as io;
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert'; // For kIsWeb
 import 'package:image_picker/image_picker.dart';
+import 'send_otp_page.dart';
+
 
 
 
@@ -25,12 +26,28 @@ class HiromixAIPage extends StatefulWidget {
 
 class _HiromixAIPageState extends State<HiromixAIPage> {
   double _sliderPosition = 130.0;
-  final double _containerWidth = 300;
-  int _credits = 0; // Store fetched credits
+  final double _containerWidth = 220; // Store fetched credits
   File? _selectedImage;
   final ImagePicker _picker = ImagePicker();
   Uint8List? _selectedImageBytes; // For web image storage
   bool _imageSelected = false; // Add this to your state class
+  String? _processedImageUrl; // Add this
+  bool _isProcessing = false;
+  bool _showBanner = true; // Controls banner visibility
+  int _credits = 0;
+
+
+  
+void _buyCredits(int amount) {
+    setState(() {
+      _credits += amount; // Add credits
+      _showBanner = false; // Hide banner after purchase
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('You bought $amount credits!'))
+    );
+  }
 
 
 
@@ -48,9 +65,13 @@ Future<void> _pickImage() async {
       reader.readAsArrayBuffer(file);
       reader.onLoadEnd.listen((event) async {
         final bytes = reader.result as Uint8List;
-        setState(() {
-          _selectedImageBytes = bytes; // Add Uint8List _selectedImageBytes to your state
-        });
+        // In your _pickImage method:
+setState(() {
+  _selectedImageBytes = bytes;
+  _selectedImage = null;
+  _imageSelected = true;
+  _processedImageUrl = null; // Add this
+});
       });
     });
   }    else {
@@ -159,60 +180,187 @@ Future<void> _pickImage() async {
 }
 
 
+Future<void> _saveProcessedImage(BuildContext context) async {
+  if (_processedImageUrl == null) return;
+
+  try {
+    final response = await http.get(Uri.parse(_processedImageUrl!));
+    final bytes = response.bodyBytes;
+
+    if (kIsWeb) {
+      final blob = html.Blob([bytes]);
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      final anchor = html.AnchorElement(href: url)
+        ..setAttribute("download", "processed_image.png")
+        ..click();
+      html.Url.revokeObjectUrl(url);
+    } else {
+      final directory = await getTemporaryDirectory();
+      final file = File('${directory.path}/processed_image.png');
+      await file.writeAsBytes(bytes);
+      await ImageGallerySaver.saveFile(file.path);
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Image downloaded!')),
+    );
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Download failed: $e')),
+    );
+  }
+}
+
+Future<String?> uploadToLambda(Uint8List imageBytes) async {
+  try {
+    // Detect Image Format using Magic Bytes
+    String mimeType = "unknown";
+    if (imageBytes.length > 4) {
+      if (imageBytes[0] == 0xFF && imageBytes[1] == 0xD8) {
+        mimeType = "image/jpeg"; // JPEG
+      } else if (imageBytes[0] == 0x89 &&
+          imageBytes[1] == 0x50 &&
+          imageBytes[2] == 0x4E &&
+          imageBytes[3] == 0x47) {
+        mimeType = "image/png"; // PNG
+      } else if (imageBytes[0] == 0x52 &&
+          imageBytes[1] == 0x49 &&
+          imageBytes[2] == 0x46 &&
+          imageBytes[3] == 0x46) {
+        mimeType = "image/webp"; // WebP
+      }
+    }
+
+    if (mimeType == "unknown") {
+      print("❌ Unsupported image format.");
+      return null;
+    }
+
+    // Convert image to Base64
+    String base64String = base64Encode(imageBytes);
+    String dataUri = "data:$mimeType;base64,$base64String";
+
+    // Wrap inside "body" field
+    String requestBody = jsonEncode({
+      "body": jsonEncode({"image_data": dataUri})
+    });
+
+    print("📡 Sending Request with MIME Type: $mimeType");
+
+    // Send request to Lambda
+    final response = await http.post(
+      Uri.parse("https://innqn6dwv1.execute-api.ap-south-1.amazonaws.com/prod/User/HiromixAIImage"),
+      headers: {"Content-Type": "application/json"},
+      body: requestBody,
+    );
+
+    if (response.statusCode == 200) {
+      final responseData = jsonDecode(response.body);
+
+      // Decode the "body" field which is itself a JSON string
+      final responseBody = jsonDecode(responseData["body"]);
+
+      if (responseBody.containsKey("upscaled_image_url")) {
+        // Extract and clean up the URL
+        String imageUrl = responseBody["upscaled_image_url"].replaceAll(r'\', '').trim();
+        print("✅ Processed Image URL: $imageUrl");
+
+        // TODO: Use the image URL as needed
+        return imageUrl;
+      } else {
+        print("⚠️ API Success but missing 'upscaled_image_url' in response: ${response.body}");
+        return null;
+      }
+    } else {
+      print("❌ API Error (${response.statusCode}): ${response.body}");
+      return null;
+    }
+  } catch (e) {
+    print("🚨 Upload Error: $e");
+    return null;
+  }
+}
+
+    // Handle API response
+
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Image.asset(
-              'assets/HiromixAI.png',
-              width: 200,
-              height: 80,
-              fit: BoxFit.contain,
-            ),
-            const SizedBox(height: 10),
-
-            // NeoPop Button with Credits Display
-            SizedBox(
-              width: 120,
-              child: NeoPopButton(
-                color: const Color.fromARGB(255, 77, 158, 150),
-                bottomShadowColor: const Color.fromARGB(255, 0, 100, 80),
-                rightShadowColor: const Color.fromARGB(255, 0, 200, 83),
-                animationDuration: const Duration(milliseconds: 300),
-                depth: 8.0,
-                onTapUp: _fetchCredits, // Fetch credits when tapped
-                border: Border.all(
-                  color: const Color.fromARGB(255, 0, 200, 83),
-                  width: 2.0,
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                  child: Row(
+Widget build(BuildContext context) {
+  return Scaffold(
+    backgroundColor: Colors.black,
+    body: Stack(
+      children: [
+        // Main Content
+        Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Image.asset(
+                'assets/HiromixAI.png',
+                width: 200,
+                height: 80,
+                fit: BoxFit.contain,
+              ),
+              GestureDetector(
+                onTap: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => const SendOtpPage()),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text("$_credits Credits", style: const TextStyle(color: Colors.white)),
+                      Text(
+                        'Logout',
+                        style: TextStyle(fontSize: 18, color: Colors.white),
+                      ),
+                      Icon(
+                        Icons.logout,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                     ],
                   ),
                 ),
               ),
+              const SizedBox(height: 10),
+               SizedBox(
+              width: 120,
+              child: NeoPopButton(
+  color: const Color.fromARGB(255, 77, 158, 150),
+  bottomShadowColor: const Color.fromARGB(255, 0, 100, 80),
+  rightShadowColor: const Color.fromARGB(255, 0, 200, 83),
+  animationDuration: const Duration(milliseconds: 300),
+  depth: 8.0,
+  onTapUp: () => _showPopup(context), // Call the function to show the popup
+  border: Border.all(
+    color: const Color.fromARGB(255, 0, 200, 83),
+    width: 2.0,
+  ),
+  child: Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text("$_credits Credits", style: const TextStyle(color: Colors.white)),
+      ],
+    ),
+  ),
+),
             ),
-            const SizedBox(height: 30),
-
-         // Image Comparison Box
-Container(
+              const SizedBox(height: 30),
+              Container(
   width: _containerWidth,
-  height: 380,
+  height: 340,
   decoration: BoxDecoration(
     border: Border.all(color: Colors.white, width: 2),
     borderRadius: BorderRadius.circular(0),
   ),
-  child: Stack(
+                child: Stack(
     children: [
       // Left Image (Before Image)
       // Add this in your Stack widget for the left image
@@ -226,57 +374,54 @@ Positioned.fill(
       child: Stack(
         children: [
           if (_selectedImage != null || _selectedImageBytes != null)
+          
             kIsWeb
                 ? Image.memory(
                     _selectedImageBytes!,
-                    fit: BoxFit.cover,
+                    fit: BoxFit.fill, // Changed from cover to fill
                     width: double.infinity,
                     height: double.infinity,
                   )
                 : Image.file(
                     _selectedImage!,
-                    fit: BoxFit.cover,
+                    fit: BoxFit.fill, // Changed from cover to fill
                     width: double.infinity,
                     height: double.infinity,
                   )
           else
             Image.asset(
-              'assets/bg2.png',
-              fit: BoxFit.cover,
+              'assets/girl6.png',
+              fit: BoxFit.fill, // Ensure it fully covers
               width: double.infinity,
               height: double.infinity,
             ),
-          
           // Add X button only when image is selected
-          if (_imageSelected && (_selectedImage != null || _selectedImageBytes != null))
             Positioned(
               left: 10,
               top: 10,
               child: GestureDetector(
-           onTap: () async {
-  final newPickedFile = await _picker.pickImage(source: ImageSource.gallery);
-
-  if (newPickedFile != null) {
-    if (kIsWeb) {
-      final bytes = await newPickedFile.readAsBytes(); // Read bytes for web
-      setState(() {
-        _selectedImageBytes = bytes;
-        _selectedImage = null; // Ensure mobile image is cleared
-        _imageSelected = true;
-      });
-    } else {
-      setState(() {
-        _selectedImage = File(newPickedFile.path);
-        _selectedImageBytes = null; // Ensure web image is cleared
-        _imageSelected = true;
-      });
-    }
-  } else {
-    // If user cancels, keep the existing image to prevent null errors
-    setState(() {}); 
-  }
-},
-
+                onTap: () async {
+                  final newPickedFile = await _picker.pickImage(source: ImageSource.gallery);
+                  
+                  if (newPickedFile != null) {
+                    if (kIsWeb) {
+                      final bytes = await newPickedFile.readAsBytes();
+                      setState(() {
+                        _selectedImageBytes = bytes;
+                        _selectedImage = null;
+                        _imageSelected = true;
+                      });
+                    } else {
+                      setState(() {
+                        _selectedImage = File(newPickedFile.path);
+                        _selectedImageBytes = null;
+                        _imageSelected = true;
+                      });
+                    }
+                  } else {
+                    setState(() {}); // Prevent null errors
+                  }
+                },
                 child: Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
@@ -297,44 +442,81 @@ Positioned.fill(
   ),
 ),
 
-      // Right Image (After Image) - Only visible when user hasn't selected a new image
-      if (_selectedImage == null && !_imageSelected)
-        Positioned.fill(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(0),
-            child: ClipRect(
-              clipper: _RightClipper(_sliderPosition, _containerWidth),
-              child: Stack(
-                children: [
-                  Image.asset('assets/bg6.png', fit: BoxFit.cover),
-
-                  // Download Icon on Right Image
-                  Positioned(
-                    top: 10,
-                    right: 10,
-                    child: GestureDetector(
-                      onTap: () => _saveImage(context),
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.5),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.download, color: Colors.white, size: 24),
-                      ),
-                    ),
+Positioned.fill(
+  child: ClipRRect(
+    borderRadius: BorderRadius.circular(0),
+    child: ClipRect(
+      clipper: _RightClipper(_sliderPosition, _containerWidth),
+      child: Stack(
+        children: [
+          if (_isProcessing)
+            const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            )
+          else if (_processedImageUrl != null)
+            Image.network(
+              _processedImageUrl!,
+              fit: BoxFit.fill,
+              width: double.infinity,
+              height: double.infinity,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return Center(
+                  child: CircularProgressIndicator(
+                    value: loadingProgress.expectedTotalBytes != null
+                        ? loadingProgress.cumulativeBytesLoaded /
+                            loadingProgress.expectedTotalBytes!
+                        : null,
                   ),
-                ],
+                );
+              },
+              errorBuilder: (context, error, stackTrace) {
+                return Image.asset(
+                  'assets/girl6ai.png',
+                  fit: BoxFit.fill,
+                  width: double.infinity,
+                  height: double.infinity,
+                );
+              },
+            )
+          else
+            Image.asset(
+              'assets/girl6ai.png',
+              fit: BoxFit.fill,
+              width: double.infinity,
+              height: double.infinity,
+            ),
+
+          // Download Icon
+          Positioned(
+            top: 10,
+            right: 10,
+            child: GestureDetector(
+              onTap: () => _saveProcessedImage(context),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.5),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.download, color: Colors.white, size: 24),
               ),
             ),
           ),
-        ),
+        ],
+      ),
+    ),
+  ),
+),
+
 
       // Vertical Line - Aligned with Slider
       Positioned(
         left: _sliderPosition - 1, // Align with slider
         child: Container(
-          width: 2,
+          width: 1,
           height: 380,
           color: Colors.white,
         ),
@@ -343,7 +525,7 @@ Positioned.fill(
       // Slider Controller (Moveable)
       Positioned(
         left: _sliderPosition - 20, // Center on split
-        top: 170, // Center vertically
+        top: 130, // Center vertically
         child: GestureDetector(
           onPanUpdate: (details) {
             setState(() {
@@ -355,88 +537,297 @@ Positioned.fill(
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.5),
+              color: const Color.fromARGB(255, 64, 64, 64).withOpacity(0.5),
               shape: BoxShape.circle,
               border: Border.all(
-                color: Colors.black,
-                width: 2,
+                color: const Color.fromARGB(255, 34, 34, 34),
+                width: 1.5,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.white.withOpacity(0.5),
-                  spreadRadius: 2,
-                  blurRadius: 4,
+                  color: Colors.white.withOpacity(0.0),
+                  spreadRadius: 0,
+                  blurRadius: 0,
                 )
               ],
             ),
             child: const Icon(
               Icons.compare_arrows,
-              color: Colors.white,
+              color: Color.fromARGB(255, 255, 255, 255),
             ),
           ),
         ),
       ),
     ],
   ),
+              ),
+              const SizedBox(height: 30),
+               if (!_imageSelected)
+                 NeoPopTiltedButton(
+  decoration: NeoPopTiltedButtonDecoration(
+    color: Colors.white,
+    plunkColor: Colors.grey[300]!,
+    shadowColor: Colors.black,
+  ),
+  child: const Padding(
+    padding: EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+    child: Text(
+      'Start',
+      style: TextStyle(
+        color: Colors.black,
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+  ),
+  onTapUp: () {
+    if (_credits == 0) {
+      setState(() {
+        _showBanner = true; // Show the popup if credits are 0
+      });
+    } else {
+      _pickImage(); // Proceed with image selection
+      setState(() {
+        _imageSelected = true;
+      });
+    }
+  },
 ),
 
-            const SizedBox(height: 30),
+              if (_imageSelected && !_isProcessing)
+                SizedBox(
+                  width: 150,
+                  child: NeoPopButton(
+    color: Colors.pinkAccent,
+    bottomShadowColor: Colors.purple,
+    rightShadowColor: Colors.red,
+    depth: 8.0,
+    onTapUp: () async {
+    if (_selectedImageBytes == null || _selectedImageBytes!.isEmpty) {
+      print("No image selected!");
+      return;
+    }
 
-          if (!_imageSelected)
-            NeoPopTiltedButton(
-              decoration: NeoPopTiltedButtonDecoration(
-                color: Colors.white,
-                plunkColor: Colors.grey[300]!,
-                shadowColor: Colors.black,
-              ),
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 50, vertical: 15),
-                child: Text(
-                  'Start',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+    setState(() {
+      _isProcessing = true;
+      _processedImageUrl = null;
+    });
+
+    // ✅ Correct way to call uploadToLambda()
+    String? imageUrl = await uploadToLambda(_selectedImageBytes!);
+
+    if (imageUrl != null) {
+      setState(() {
+        _processedImageUrl = imageUrl;
+      });
+    } else {
+      print("Image processing failed.");
+    }
+
+    setState(() {
+      _isProcessing = false;
+    });
+  },
+    child: const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+      child: Text(
+        '  Glow Up',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    ),
+  ),
                 ),
+            ],
+          ),
+        ),
+
+        // Credit Overlay (Positioned correctly in root Stack)
+        if (_showBanner) 
+        
+  Container(
+    color: Colors.black.withOpacity(0.8), // Transparent black overlay
+    alignment: Alignment.center, // Center the popup
+    child: Container(
+      padding: EdgeInsets.all(15), // Space for outer border
+      decoration: BoxDecoration(
+        color: Color(0xFFFCF3E8), // Background Color (F8D9B3)
+        borderRadius: BorderRadius.circular(0), // Rounded corners
+        border: Border.all(
+          color: Colors.black, // Outer black border
+          width: 2, // Outer border width
+        ),
+      ),
+      child: Container(
+        padding: EdgeInsets.all(20), // Padding inside the second box
+        width: MediaQuery.of(context).size.width > 600 ? 400 : 320, // Responsive
+        decoration: BoxDecoration(
+          color: Color(0xFFFCF3E8), // Background Color (same as parent)
+          borderRadius: BorderRadius.circular(0),
+          border: Border.all(
+            color: Colors.black, // Inner black border
+            width: 2, // Inner border width
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              "Buy Credits",
+              style: TextStyle(
+                fontFamily: "IBMPlexMono",
+                fontSize: 24,
+                fontWeight: FontWeight.normal,
+                color: Colors.black, // Text in black
               ),
-              onTapUp: () {
-                _pickImage(); // Trigger image selection
+            ),
+            SizedBox(height: 20),
+            _buildCreditOption("10 CREDITS FOR RS 100", 10, 100),
+            SizedBox(height: 15),
+            _buildCreditOption("20 CREDITS FOR RS 150", 20, 150),
+            SizedBox(height: 20),
+
+            // Close Button
+            TextButton(
+              onPressed: () {
                 setState(() {
-                  _imageSelected = true;
+                  _showBanner = false;
                 });
               },
+              child: Text(
+                "X",
+                style: TextStyle(color: const Color.fromARGB(255, 0, 0, 0), fontFamily: "IBMPlexMono",fontSize: 20, fontWeight: FontWeight.bold),
+              ),
             ),
+          ],
+        ),
+      ),
+  
+  
+    
+    ),
+  ),
 
-          if (_imageSelected)
-            SizedBox(
-              width: 150,
-              child: NeoPopButton(
-                color: Colors.pinkAccent,
-                bottomShadowColor: Colors.purple,
-                rightShadowColor: Colors.red,
-                depth: 8.0,
-                onTapUp: () {
-                  // Add glow up functionality
-                },
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+      ],
+    ),
+  );
+}
+
+void _showPopup(BuildContext context) {
+  showDialog(
+    context: context,
+    barrierDismissible: true, // Allows dismissing by tapping outside
+    builder: (BuildContext context) {
+      return Dialog(
+        backgroundColor: Colors.transparent, // No default dialog background
+        child: Container(
+          padding: EdgeInsets.all(15), // Space for outer border
+          decoration: BoxDecoration(
+            color: Color(0xFFFCF3E8), // Background Color (F8D9B3)
+            borderRadius: BorderRadius.circular(0),
+            border: Border.all(
+              color: Colors.black, // Outer black border
+              width: 2, // Outer border width
+            ),
+          ),
+          child: Container(
+            padding: EdgeInsets.all(20), // Padding inside the second box
+            width: MediaQuery.of(context).size.width > 600 ? 400 : 320, // Responsive
+            decoration: BoxDecoration(
+              color: Color(0xFFFCF3E8), // Background Color (same as parent)
+              borderRadius: BorderRadius.circular(0),
+              border: Border.all(
+                color: Colors.black, // Inner black border
+                width: 2, // Inner border width
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  "BUY CREDITS",
+                  style: TextStyle(
+                    fontFamily: "IBMPlexMono",
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold, // Make bold
+                    color: Colors.black, // Text in black
+                  ),
+                ),
+                SizedBox(height: 20),
+                _buildCreditOption("10 CREDITS FOR RS 100", 10, 100),
+                SizedBox(height: 15),
+                _buildCreditOption("20 CREDITS FOR RS 150", 20, 150),
+                SizedBox(height: 20),
+
+                // Close Button
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Close the dialog
+                  },
                   child: Text(
-                    'Glow Up',
+                    "X",
                     style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
+                      color: Colors.black,
+                      fontFamily: "IBMPlexMono",
+                      fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
-              ),
+              ],
             ),
-        ],
-      ),
-    ),
+          ),
+        ),
+      );
+    },
   );
 }
+
+
+ Widget _buildCreditOption(String text, int credits, int price) {
+  return Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+      Text(
+        text,
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: Colors.black,
+          fontFamily: "IBMPlexMono", // Ensuring IBM Plex Mono font
+        ),
+      ),
+      NeoPopButton(
+        color: const Color.fromARGB(255, 255, 216, 175),
+        onTapUp: () => _buyCredits(credits),
+        onTapDown: () {},
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+          child: Text(
+            "BUY",
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: const Color.fromARGB(255, 0, 0, 0),
+              fontFamily: "IBMPlexMono",
+            ),
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+void _purchaseCredits(int amount) {
+  // Implement your purchase logic here
+  setState(() {
+    _credits += amount; // Update credits after purchase
+  });
+} 
+
 }
 
 class _LeftClipper extends CustomClipper<Rect> {
@@ -462,3 +853,7 @@ class _RightClipper extends CustomClipper<Rect> {
   bool shouldReclip(covariant _RightClipper oldClipper) =>
       oldClipper.start != start || oldClipper.totalWidth != totalWidth;
 }
+
+
+
+

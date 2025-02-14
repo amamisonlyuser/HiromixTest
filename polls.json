@@ -1,0 +1,68 @@
+{
+    "institution_short_name": "XIE",
+    "poll_data": [
+        {
+            "question": "Who is the Pookie?",
+            "options": [
+                {
+                    "text": "Rohit",
+                    "image": "https://hiromixai.s3.ap-south-1.amazonaws.com/boy7.png"
+                },
+                {
+                    "text": "Rahul",
+                    "image": "https://hiromixai.s3.ap-south-1.amazonaws.com/boy7.png"
+                },
+                {
+                    "text": "Harsh",
+                    "image": "https://hiromixai.s3.ap-south-1.amazonaws.com/boy7.png"
+                },
+                {
+                    "text": "Gaurav",
+                    "image": "https://hiromixai.s3.ap-south-1.amazonaws.com/boy7.png"
+                }
+            ]
+        },
+        {
+            "question": "The Queen of XIE",
+            "options": [
+                {
+                    "text": "Shruti",
+                    "image": "https://hiromixai.s3.ap-south-1.amazonaws.com/boy7.png"
+                },
+                {
+                    "text": "Priya",
+                    "image": "https://hiromixai.s3.ap-south-1.amazonaws.com/boy7.png"
+                },
+                {
+                    "text": "Garima",
+                    "image": "https://hiromixai.s3.ap-south-1.amazonaws.com/boy7.png"
+                },
+                {
+                    "text": "Diksha",
+                    "image": "https://hiromixai.s3.ap-south-1.amazonaws.com/boy7.png"
+                }
+            ]
+        },
+        {
+            "question": "This person is going places",
+            "options": [
+                {
+                    "text": "Goruv",
+                    "image": "https://hiromixai.s3.ap-south-1.amazonaws.com/boy7.png"
+                },
+                {
+                    "text": "Om",
+                    "image": "https://hiromixai.s3.ap-south-1.amazonaws.com/boy7.png"
+                },
+                {
+                    "text": "Aman",
+                    "image": "https://hiromixai.s3.ap-south-1.amazonaws.com/boy7.png"
+                },
+                {
+                    "text": "Rahul",
+                    "image": "https://hiromixai.s3.ap-south-1.amazonaws.com/boy7.png"
+                }
+            ]
+        }
+    ]
+}

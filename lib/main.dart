@@ -6,6 +6,7 @@ import 'HiromixAi.dart';
 import 'Pollspage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import'RatingPollPage.dart';
 
 
 void main() async {
@@ -45,9 +46,9 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String institution_short_name = "None";
+  String event_poll_type = "None";
   bool showPollsTab = false;
   int _selectedIndex = 0;
-  bool Poll_live = false; 
 
   @override
   void initState() {
@@ -71,18 +72,20 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         final responseData = json.decode(response.body);
         final bodyData = json.decode(responseData['body']);
         String institutionShortName = bodyData['institution_short_name'] ?? 'None';
-        bool pollLive = bodyData['Poll_live'] ?? false;
+        String pollType = bodyData['event_poll_type'] ?? 'None';
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('institution_short_name', institutionShortName);
+        await prefs.setString('event_poll_type', pollType);
 
         setState(() {
           institution_short_name = institutionShortName;
-          Poll_live = pollLive;
+          event_poll_type = pollType;
 
-          // Show navigation bar only if institutionShortName is valid
-          showPollsTab = institutionShortName.isNotEmpty && institutionShortName != "None";
-          _selectedIndex = (showPollsTab && pollLive) ? 1 : 0; 
+          // Show Poll tab if the event_poll_type is valid
+          showPollsTab = event_poll_type == "Question_Poll" || event_poll_type == "Rating_Poll";
+
+          _selectedIndex = (showPollsTab) ? 1 : 0;
 
           // Only initialize _tabController if showPollsTab is true
           if (showPollsTab) {
@@ -92,8 +95,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               initialIndex: _selectedIndex,
             );
           }
-
-          
         });
 
         print('Response: ${response.body}');
@@ -103,10 +104,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     } catch (e) {
       setState(() {
         institution_short_name = 'Error: $e';
-        Poll_live = false;
+        event_poll_type = 'None';
         showPollsTab = false;
         _selectedIndex = 0;
-        
       });
       print('Error occurred: $e');
     }
@@ -122,57 +122,54 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   @override
   Widget build(BuildContext context) {
-    // Show loading screen while fetching data
-    
-
-    // If institution_short_name is "None", directly show HiromixAIPage without bottom navigation
+    // If there's no valid event poll type, show HiromixAIPage only
     if (!showPollsTab) {
       return const HiromixAIPage();
     }
 
-    // Show bottom navigation if institution_short_name is valid
+    // Determine which poll page to show
+    Widget pollPage;
+    if (event_poll_type == "Question_Poll") {
+      pollPage = PollsPage(phone_number: widget.phone_number, institution_short_name: institution_short_name);
+    } else if (event_poll_type == "Rating_Poll") {
+      pollPage = RatingPollPage(phone_number: widget.phone_number, institution_short_name: institution_short_name);
+    } else {
+      pollPage = const HiromixAIPage();
+    }
+
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            onPressed: () async {
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.setBool('isAuthenticated', false);
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const SendOtpPage()),
-              );
-            },
+      body: _selectedIndex == 0 ? const HiromixAIPage() : pollPage,
+      bottomNavigationBar: BottomAppBar(
+        color: Colors.black.withOpacity(0.5),
+        elevation: 0,
+        child: SizedBox(
+          height: 50, // Adjusted height for better UI
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              IconButton(
+                icon: Icon(Icons.star, color: _selectedIndex == 0 ? Colors.white : Colors.grey),
+                onPressed: () {
+                  setState(() {
+                    _selectedIndex = 0;
+                  });
+                },
+              ),
+              IconButton(
+                icon: Icon(
+                  Icons.gamepad,
+                  color: _selectedIndex == 1 ? Colors.white : Colors.grey,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _selectedIndex = 1;
+                  });
+                },
+              ),
+            ],
           ),
-        ],
-      ),
-      body: _selectedIndex == 0
-          ? const HiromixAIPage()
-          : PollsPage(phone_number: widget.phone_number, institution_short_name: institution_short_name),
-      
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Colors.black,
-        currentIndex: _selectedIndex,
-        selectedItemColor: Colors.white,
-        unselectedItemColor: Colors.grey,
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.star),
-            label: "AI",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.gamepad),
-            label: "Play",
-          ),
-        ],
+        ),
       ),
     );
   }
